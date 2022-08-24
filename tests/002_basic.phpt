@@ -4,10 +4,10 @@ Basic test on bsdiff functions
 bsdiff
 --FILE--
 <?php
-$old_file     = __DIR__ . '/old.out';
-$new_file     = __DIR__ . '/new.out';
-$diff_file    = __DIR__ . '/diff.out';
-$patched_file = __DIR__ . '/patched.out';
+$old_file     = __DIR__ . '/002_old.out';
+$new_file     = __DIR__ . '/002_new.out';
+$diff_file    = __DIR__ . '/002_diff.out';
+$patched_file = __DIR__ . '/002_patched.out';
 
 file_put_contents($old_file, str_repeat("Hello World", 1997));
 file_put_contents($new_file, str_repeat("Hello PHP", 1999));
