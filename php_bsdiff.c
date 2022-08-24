@@ -62,79 +62,79 @@ PHP_FUNCTION(bsdiff_diff)
     char *old_file, *new_file, *diff_file;
     size_t old_file_len, new_file_len, diff_file_len;
 
-	ZEND_PARSE_PARAMETERS_START(3, 3)
+    ZEND_PARSE_PARAMETERS_START(3, 3)
         Z_PARAM_PATH(old_file, old_file_len)
         Z_PARAM_PATH(new_file, new_file_len)
         Z_PARAM_PATH(diff_file, diff_file_len)
-	ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END();
 
-	int fd;
-	int bz2err;
-	uint8_t *old,*new;
-	off_t oldsize,newsize;
-	uint8_t buf[8];
-	FILE * pf;
-	struct bsdiff_stream stream;
-	BZFILE* bz2;
+    int fd;
+    int bz2err;
+    uint8_t *old,*new;
+    off_t oldsize,newsize;
+    uint8_t buf[8];
+    FILE * pf;
+    struct bsdiff_stream stream;
+    BZFILE* bz2;
 
-	memset(&bz2, 0, sizeof(bz2));
-	stream.malloc = malloc;
-	stream.free = free;
-	stream.write = bz2_write;
+    memset(&bz2, 0, sizeof(bz2));
+    stream.malloc = malloc;
+    stream.free = free;
+    stream.write = bz2_write;
 
-	/* Allocate oldsize+1 bytes instead of oldsize bytes to ensure
-		that we never try to malloc(0) and get a NULL pointer */
-	if(((fd=open(old_file,O_RDONLY,0))<0) ||
-		((oldsize=lseek(fd,0,SEEK_END))==-1) ||
-		((old=malloc(oldsize+1))==NULL) ||
-		(lseek(fd,0,SEEK_SET)!=0) ||
-		(read(fd,old,oldsize)!=oldsize) ||
-		(close(fd)==-1)) err(1,"%s",old_file);
+    /* Allocate oldsize+1 bytes instead of oldsize bytes to ensure
+        that we never try to malloc(0) and get a NULL pointer */
+    if(((fd=open(old_file,O_RDONLY,0))<0) ||
+        ((oldsize=lseek(fd,0,SEEK_END))==-1) ||
+        ((old=malloc(oldsize+1))==NULL) ||
+        (lseek(fd,0,SEEK_SET)!=0) ||
+        (read(fd,old,oldsize)!=oldsize) ||
+        (close(fd)==-1)) err(1,"%s",old_file);
 
 
-	/* Allocate newsize+1 bytes instead of newsize bytes to ensure
-		that we never try to malloc(0) and get a NULL pointer */
-	if(((fd=open(new_file,O_RDONLY,0))<0) ||
-		((newsize=lseek(fd,0,SEEK_END))==-1) ||
-		((new=malloc(newsize+1))==NULL) ||
-		(lseek(fd,0,SEEK_SET)!=0) ||
-		(read(fd,new,newsize)!=newsize) ||
-		(close(fd)==-1)) err(1,"%s",new_file);
+    /* Allocate newsize+1 bytes instead of newsize bytes to ensure
+        that we never try to malloc(0) and get a NULL pointer */
+    if(((fd=open(new_file,O_RDONLY,0))<0) ||
+        ((newsize=lseek(fd,0,SEEK_END))==-1) ||
+        ((new=malloc(newsize+1))==NULL) ||
+        (lseek(fd,0,SEEK_SET)!=0) ||
+        (read(fd,new,newsize)!=newsize) ||
+        (close(fd)==-1)) err(1,"%s",new_file);
 
-	/* Create the patch file */
-	if ((pf = fopen(diff_file, "w")) == NULL) {
+    /* Create the patch file */
+    if ((pf = fopen(diff_file, "w")) == NULL) {
         err(1, "%s", diff_file);
     }
 
-	/* Write header (signature+newsize)*/
-	offtout(newsize, buf);
-	if (fwrite("ENDSLEY/BSDIFF43", 16, 1, pf) != 1 ||
-		fwrite(buf, sizeof(buf), 1, pf) != 1) {
+    /* Write header (signature+newsize)*/
+    offtout(newsize, buf);
+    if (fwrite("ENDSLEY/BSDIFF43", 16, 1, pf) != 1 ||
+        fwrite(buf, sizeof(buf), 1, pf) != 1) {
         err(1, "Failed to write header");
     }
 
 
-	if (NULL == (bz2 = BZ2_bzWriteOpen(&bz2err, pf, 9, 0, 0))) {
+    if (NULL == (bz2 = BZ2_bzWriteOpen(&bz2err, pf, 9, 0, 0))) {
         errx(1, "BZ2_bzWriteOpen, bz2err=%d", bz2err);
     }
 
-	stream.opaque = bz2;
-	if (bsdiff(old, oldsize, new, newsize, &stream)) {
+    stream.opaque = bz2;
+    if (bsdiff(old, oldsize, new, newsize, &stream)) {
         err(1, "bsdiff");
     }
 
-	BZ2_bzWriteClose(&bz2err, bz2, 0, NULL, NULL);
-	if (bz2err != BZ_OK) {
+    BZ2_bzWriteClose(&bz2err, bz2, 0, NULL, NULL);
+    if (bz2err != BZ_OK) {
         err(1, "BZ2_bzWriteClose, bz2err=%d", bz2err);
     }
 
-	if (fclose(pf)) {
+    if (fclose(pf)) {
         err(1, "fclose");
     }
 
-	/* Free the memory we used */
-	free(old);
-	free(new);
+    /* Free the memory we used */
+    free(old);
+    free(new);
 
     RETURN_TRUE;
 }
@@ -146,78 +146,78 @@ PHP_FUNCTION(bsdiff_patch)
     char *old_file, *new_file, *diff_file;
     size_t old_file_len, new_file_len, diff_file_len;
 
-	ZEND_PARSE_PARAMETERS_START(3, 3)
+    ZEND_PARSE_PARAMETERS_START(3, 3)
         Z_PARAM_PATH(old_file, old_file_len)
         Z_PARAM_PATH(new_file, new_file_len)
         Z_PARAM_PATH(diff_file, diff_file_len)
-	ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END();
 
-	FILE * f;
-	int fd;
-	int bz2err;
-	uint8_t header[24];
-	uint8_t *old, *new;
-	int64_t oldsize, newsize;
-	BZFILE* bz2;
-	struct bspatch_stream stream;
-	struct stat sb;
+    FILE * f;
+    int fd;
+    int bz2err;
+    uint8_t header[24];
+    uint8_t *old, *new;
+    int64_t oldsize, newsize;
+    BZFILE* bz2;
+    struct bspatch_stream stream;
+    struct stat sb;
 
-	/* Open patch file */
-	if ((f = fopen(diff_file, "r")) == NULL) {
+    /* Open patch file */
+    if ((f = fopen(diff_file, "r")) == NULL) {
         err(1, "fopen(%s)", diff_file);
     }
 
-	/* Read header */
-	if (fread(header, 1, 24, f) != 24) {
-		if (feof(f)) {
+    /* Read header */
+    if (fread(header, 1, 24, f) != 24) {
+        if (feof(f)) {
             errx(1, "Corrupt patch\n");
         }
-		err(1, "fread(%s)", diff_file);
-	}
+        err(1, "fread(%s)", diff_file);
+    }
 
-	/* Check for appropriate magic */
-	if (memcmp(header, "ENDSLEY/BSDIFF43", 16) != 0) {
+    /* Check for appropriate magic */
+    if (memcmp(header, "ENDSLEY/BSDIFF43", 16) != 0) {
         errx(1, "Corrupt patch\n");
     }
 
-	/* Read lengths from header */
-	newsize=offtin(header+16);
-	if(newsize<0) {
+    /* Read lengths from header */
+    newsize=offtin(header+16);
+    if(newsize<0) {
         errx(1,"Corrupt patch\n");
     }
 
-	/* Close patch file and re-open it via libbzip2 at the right places */
-	if(((fd=open(old_file,O_RDONLY,0))<0) ||
-		((oldsize=lseek(fd,0,SEEK_END))==-1) ||
-		((old=malloc(oldsize+1))==NULL) ||
-		(lseek(fd,0,SEEK_SET)!=0) ||
-		(read(fd,old,oldsize)!=oldsize) ||
-		(fstat(fd, &sb)) ||
-		(close(fd)==-1)) err(1,"%s",old_file);
-	if((new=malloc(newsize+1))==NULL) err(1,NULL);
+    /* Close patch file and re-open it via libbzip2 at the right places */
+    if(((fd=open(old_file,O_RDONLY,0))<0) ||
+        ((oldsize=lseek(fd,0,SEEK_END))==-1) ||
+        ((old=malloc(oldsize+1))==NULL) ||
+        (lseek(fd,0,SEEK_SET)!=0) ||
+        (read(fd,old,oldsize)!=oldsize) ||
+        (fstat(fd, &sb)) ||
+        (close(fd)==-1)) err(1,"%s",old_file);
+    if((new=malloc(newsize+1))==NULL) err(1,NULL);
 
-	if (NULL == (bz2 = BZ2_bzReadOpen(&bz2err, f, 0, 0, NULL, 0))) {
+    if (NULL == (bz2 = BZ2_bzReadOpen(&bz2err, f, 0, 0, NULL, 0))) {
         errx(1, "BZ2_bzReadOpen, bz2err=%d", bz2err);
     }
 
-	stream.read = bz2_read;
-	stream.opaque = bz2;
-	if (bspatch(old, oldsize, new, newsize, &stream)) {
+    stream.read = bz2_read;
+    stream.opaque = bz2;
+    if (bspatch(old, oldsize, new, newsize, &stream)) {
         errx(1, "bspatch");
     }
 
-	/* Clean up the bzip2 reads */
-	BZ2_bzReadClose(&bz2err, bz2);
-	fclose(f);
+    /* Clean up the bzip2 reads */
+    BZ2_bzReadClose(&bz2err, bz2);
+    fclose(f);
 
-	/* Write the new file */
-	if(((fd=open(new_file,O_CREAT|O_TRUNC|O_WRONLY,sb.st_mode))<0) ||
-		(write(fd,new,newsize)!=newsize) || (close(fd)==-1)) {
+    /* Write the new file */
+    if(((fd=open(new_file,O_CREAT|O_TRUNC|O_WRONLY,sb.st_mode))<0) ||
+        (write(fd,new,newsize)!=newsize) || (close(fd)==-1)) {
         err(1,"%s",new_file);
     }
 
-	free(new);
-	free(old);
+    free(new);
+    free(old);
 
     RETURN_TRUE;
 }
@@ -227,10 +227,10 @@ PHP_FUNCTION(bsdiff_patch)
 PHP_RINIT_FUNCTION(bsdiff)
 {
 #if defined(ZTS) && defined(COMPILE_DL_BSDIFF)
-	ZEND_TSRMLS_CACHE_UPDATE();
+    ZEND_TSRMLS_CACHE_UPDATE();
 #endif
 
-	return SUCCESS;
+    return SUCCESS;
 }
 /* }}} */
 
@@ -246,24 +246,24 @@ PHP_MINIT_FUNCTION(bsdiff)
 /* {{{ PHP_MINFO_FUNCTION */
 PHP_MINFO_FUNCTION(bsdiff)
 {
-	php_info_print_table_start();
-	php_info_print_table_header(2, "bsdiff support", "enabled");
-	php_info_print_table_end();
+    php_info_print_table_start();
+    php_info_print_table_header(2, "bsdiff support", "enabled");
+    php_info_print_table_end();
 }
 /* }}} */
 
 /* {{{ bsdiff_module_entry */
 zend_module_entry bsdiff_module_entry = {
-	STANDARD_MODULE_HEADER,
-	"bsdiff",           /* Extension name */
-	ext_functions,      /* zend_function_entry */
+    STANDARD_MODULE_HEADER,
+    "bsdiff",           /* Extension name */
+    ext_functions,      /* zend_function_entry */
     PHP_MINIT(bsdiff),  /* PHP_MINIT - Module initialization */
-	NULL,               /* PHP_MSHUTDOWN - Module shutdown */
+    NULL,               /* PHP_MSHUTDOWN - Module shutdown */
     PHP_RINIT(bsdiff),  /* PHP_RINIT - Request initialization */
-	NULL,               /* PHP_RSHUTDOWN - Request shutdown */
-	PHP_MINFO(bsdiff),  /* PHP_MINFO - Module info */
-	PHP_BSDIFF_VERSION, /* Version */
-	STANDARD_MODULE_PROPERTIES
+    NULL,               /* PHP_RSHUTDOWN - Request shutdown */
+    PHP_MINFO(bsdiff),  /* PHP_MINFO - Module info */
+    PHP_BSDIFF_VERSION, /* Version */
+    STANDARD_MODULE_PROPERTIES
 };
 /* }}} */
 
