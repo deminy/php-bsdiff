@@ -1,7 +1,7 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: feff08cc6a667f071aa44151cfa83135e5c4cd9f */
+ * Stub hash: 43c3c6f2d50e9214e8d9d22bde26244fc295f132 */
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_bsdiff_diff, 0, 3, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_bsdiff_diff, 0, 3, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, old_file, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, new_file, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, diff_file, IS_STRING, 0)
