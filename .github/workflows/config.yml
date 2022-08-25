@@ -7,10 +7,6 @@ jobs:
           version: ["7.4", "8.0", "8.1", "8.2"]
     runs-on: ubuntu-latest
     steps:
-      - name: Install package libbz2-dev
-        run: |
-            sudo apt-get update
-            sudo apt-get install -y libbz2-dev --no-install-recommends
       - name: Checkout php-bsdiff
         uses: actions/checkout@v2
       - name: Setup PHP
@@ -20,7 +16,7 @@ jobs:
       - name: phpize
         run: phpize
       - name: configure
-        run: ./configure
+        run: ./configure --with-libdir=x86_64-linux-gnu
       - name: make
         run: make
       - name: test

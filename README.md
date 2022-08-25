@@ -11,6 +11,7 @@ For more information, visit his website at <http://www.daemonology.net/bsdiff/>.
 ## Requirements
 
 * PHP 7.4+
+* BZip2 1.0+
 
 ## Installation
 
@@ -18,7 +19,7 @@ For more information, visit his website at <http://www.daemonology.net/bsdiff/>.
 phpize
 ./configure
 make
-make test # optional
+make test
 make install
 ```
 
@@ -26,6 +27,12 @@ Once done, add the following line to your `php.ini` file:
 
 ```ini
 extension=bsdiff.so
+```
+
+In case BZip2 can't be found automatically, use option `--with-bz2` to specify the installation directory of BZip2. e.g.,
+
+```bash
+./configure --with-bz2=/usr/local/opt/bzip2 # When BZip2 is stalled via Homebrew on MacOS.
 ```
 
 ## Functions

@@ -18,6 +18,11 @@ PHP_ARG_ENABLE([bsdiff],
     [Enable bsdiff support])],
   [no])
 
+PHP_ARG_WITH([bz2],
+  [to specify installation directory of BZip2],
+  [AS_HELP_STRING([[--with-bz2=DIR]],
+    [Specify installation directory of BZip2])])
+
 if test "$PHP_BSDIFF" != "no"; then
   dnl Write more examples of tests here...
 
@@ -62,30 +67,37 @@ if test "$PHP_BSDIFF" != "no"; then
   dnl LIBNAME=BSDIFF # you may want to change this
   dnl LIBSYMBOL=BSDIFF # you most likely want to change this
 
-  dnl If you need to check for a particular library function (e.g. a conditional
-  dnl or version-dependent feature) and you are using pkg-config:
-  dnl PHP_CHECK_LIBRARY($LIBNAME, $LIBSYMBOL,
-  dnl [
-  dnl   AC_DEFINE(HAVE_BSDIFF_FEATURE, 1, [ ])
-  dnl ],[
-  dnl   AC_MSG_ERROR([FEATURE not supported by your bsdiff library.])
-  dnl ], [
-  dnl   $LIBFOO_LIBS
-  dnl ])
+  if test "$PHP_BZ2" != "no"; then
+    if test -r $PHP_BZ2/include/bzlib.h; then
+      BZIP_DIR=$PHP_BZ2
+    else
+      AC_MSG_CHECKING(for BZip2 in default path)
+      for i in /usr/local /usr; do
+        if test -r $i/include/bzlib.h; then
+          BZIP_DIR=$i
+          AC_MSG_RESULT(found in $i)
+          break
+        fi
+      done
+    fi
 
-  dnl If you need to check for a particular library function (e.g. a conditional
-  dnl or version-dependent feature) and you are not using pkg-config:
-  dnl PHP_CHECK_LIBRARY($LIBNAME, $LIBSYMBOL,
-  dnl [
-  dnl   PHP_ADD_LIBRARY_WITH_PATH($LIBNAME, $BSDIFF_DIR/$PHP_LIBDIR, BSDIFF_SHARED_LIBADD)
-  dnl   AC_DEFINE(HAVE_BSDIFF_FEATURE, 1, [ ])
-  dnl ],[
-  dnl   AC_MSG_ERROR([FEATURE not supported by your bsdiff library.])
-  dnl ],[
-  dnl   -L$BSDIFF_DIR/$PHP_LIBDIR -lm
-  dnl ])
-  dnl
-  dnl PHP_SUBST(BSDIFF_SHARED_LIBADD)
+    if test -z "$BZIP_DIR"; then
+      AC_MSG_RESULT(not found)
+      AC_MSG_ERROR(Please reinstall the BZip2 distribution)
+    fi
+
+    PHP_CHECK_LIBRARY(bz2, BZ2_bzWriteOpen,
+    [
+      PHP_ADD_INCLUDE($BZIP_DIR/include)
+      PHP_ADD_LIBRARY_WITH_PATH(bz2, $BZIP_DIR/$PHP_LIBDIR, BSDIFF_SHARED_LIBADD)
+      AC_DEFINE(HAVE_BZ2,1,[ ])
+    ], [
+      AC_MSG_ERROR(php-bsdiff requires libbz2 >= 1.0.0)
+    ], [
+      -L$BZIP_DIR/$PHP_LIBDIR
+    ])
+    PHP_SUBST(BSDIFF_SHARED_LIBADD)
+  fi
 
   dnl In case of no dependencies
   AC_DEFINE(HAVE_BSDIFF, 1, [ Have bsdiff support ])
