@@ -12,4 +12,8 @@ extern zend_module_entry bsdiff_module_entry;
 ZEND_TSRMLS_CACHE_EXTERN()
 # endif
 
+#if PHP_VERSION_ID < 80000
+#define RETURN_THROWS() RETURN_FALSE
+#endif
+
 #endif	/* PHP_BSDIFF_H */

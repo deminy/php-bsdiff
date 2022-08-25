@@ -10,7 +10,7 @@ For more information, visit his website at <http://www.daemonology.net/bsdiff/>.
 
 ## Requirements
 
-* PHP 8.x
+* PHP 7.4+
 
 ## Installation
 
