@@ -102,18 +102,22 @@ PHP_FUNCTION(bsdiff_diff)
         RETURN_THROWS();
     }
     if ((oldsize = lseek(fd, 0, SEEK_END)) == -1) {
+        close(fd);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to determine size of the old file \"%s\"", old_file);
         RETURN_THROWS();
     }
     if ((old = malloc(oldsize + 1)) == NULL) {
+        close(fd);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to allocate memory to store old data");
         RETURN_THROWS();
     }
-    if ((lseek(fd, 0, SEEK_SET) != 0) || (read(fd, old, oldsize) != oldsize) || (close(fd) == -1)) {
+    if ((lseek(fd, 0, SEEK_SET) != 0) || (read(fd, old, oldsize) != oldsize)) {
         free(old);
+        close(fd);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to read data from the old file \"%s\"", old_file);
         RETURN_THROWS();
     }
+    close(fd);
 
     /* Allocate newsize+1 bytes instead of newsize bytes to ensure that we never try to malloc(0) and get a NULL pointer */
     if ((fd = open(new_file, O_RDONLY, 0)) < 0) {
@@ -123,20 +127,24 @@ PHP_FUNCTION(bsdiff_diff)
     }
     if ((newsize = lseek(fd, 0, SEEK_END)) == -1) {
         free(old);
+        close(fd);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to determine size of the new file \"%s\"", new_file);
         RETURN_THROWS();
     }
     if ((new = malloc(newsize + 1)) == NULL) {
         free(old);
+        close(fd);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to allocate memory to store new data");
         RETURN_THROWS();
     }
-    if ((lseek(fd, 0, SEEK_SET) != 0) || (read(fd, new, newsize) != newsize) || (close(fd) == -1)) {
+    if ((lseek(fd, 0, SEEK_SET) != 0) || (read(fd, new, newsize) != newsize)) {
         free(old);
         free(new);
+        close(fd);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to read data from the new file \"%s\"", new_file);
         RETURN_THROWS();
     }
+    close(fd);
 
     /* Create the patch file */
     if ((pf = fopen(diff_file, "w")) == NULL) {
@@ -152,6 +160,7 @@ PHP_FUNCTION(bsdiff_diff)
         fwrite(buf, sizeof(buf), 1, pf) != 1) {
         free(old);
         free(new);
+        fclose(pf);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to write header to the diff file");
         RETURN_THROWS();
     }
@@ -160,6 +169,7 @@ PHP_FUNCTION(bsdiff_diff)
     if (NULL == (bz2 = BZ2_bzWriteOpen(&bz2err, pf, 9, 0, 0))) {
         free(old);
         free(new);
+        fclose(pf);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to prepare to write data to the diff file (bz2err=%d)", bz2err);
         RETURN_THROWS();
     }
@@ -168,6 +178,8 @@ PHP_FUNCTION(bsdiff_diff)
     if (bsdiff(old, oldsize, new, newsize, &stream)) {
         free(old);
         free(new);
+        BZ2_bzWriteClose(&bz2err, bz2, 0, NULL, NULL);
+        fclose(pf);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to create diff data");
         RETURN_THROWS();
     }
@@ -178,14 +190,12 @@ PHP_FUNCTION(bsdiff_diff)
 
     BZ2_bzWriteClose(&bz2err, bz2, 0, NULL, NULL);
     if (bz2err != BZ_OK) {
+        fclose(pf);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to complete writing data to the diff file (bz2err=%d)", bz2err);
         RETURN_THROWS();
     }
 
-    if (fclose(pf)) {
-        zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to close the diff file");
-        RETURN_THROWS();
-    }
+    fclose(pf);
 }
 /* }}} */
 
@@ -220,15 +230,18 @@ PHP_FUNCTION(bsdiff_patch)
     /* Read header */
     if (fread(header, 1, 24, f) != 24) {
         if (feof(f)) {
+            fclose(f);
             zend_throw_exception_ex(ce_bsdiff_exception, 0, "The diff file is corrupted (missing header information)");
             RETURN_THROWS();
         }
+        fclose(f);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to read data from the diff file");
         RETURN_THROWS();
     }
 
     /* Check for appropriate magic */
     if (memcmp(header, "ENDSLEY/BSDIFF43", 16) != 0) {
+        fclose(f);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "The diff file is corrupted (invalid header information)");
         RETURN_THROWS();
     }
@@ -236,39 +249,50 @@ PHP_FUNCTION(bsdiff_patch)
     /* Read lengths from header */
     newsize=offtin(header+16);
     if(newsize<0) {
+        fclose(f);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "The diff file is corrupted (invalid length information)");
         RETURN_THROWS();
     }
 
     /* Close patch file and re-open it via libbzip2 at the right places */
     if ((fd = open(old_file, O_RDONLY, 0)) < 0) {
+        fclose(f);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to open the old file \"%s\"", old_file);
         RETURN_THROWS();
     }
     if ((oldsize = lseek(fd, 0, SEEK_END)) == -1) {
+        fclose(f);
+        close(fd);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to determine size of the old file \"%s\"", old_file);
         RETURN_THROWS();
     }
     if ((old = malloc(oldsize + 1)) == NULL) {
+        fclose(f);
+        close(fd);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to allocate memory to store old data");
         RETURN_THROWS();
     }
-    if ((lseek(fd, 0, SEEK_SET) != 0) || (read(fd, old, oldsize) != oldsize) || (fstat(fd, &sb)) || (close(fd) == -1)) {
+    if ((lseek(fd, 0, SEEK_SET) != 0) || (read(fd, old, oldsize) != oldsize) || (fstat(fd, &sb))) {
         free(old);
+        fclose(f);
+        close(fd);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to read data from the old file \"%s\"", old_file);
         RETURN_THROWS();
     }
+    close(fd);
 
     if((new=malloc(newsize+1))==NULL) {
         free(old);
+        fclose(f);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to allocate memory to store patched data");
         RETURN_THROWS();
     }
 
     if (NULL == (bz2 = BZ2_bzReadOpen(&bz2err, f, 0, 0, NULL, 0))) {
-        zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to read data from the diff file (bz2err=%d)", bz2err);
         free(new);
         free(old);
+        fclose(f);
+        zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to read data from the diff file (bz2err=%d)", bz2err);
         RETURN_THROWS();
     }
 
@@ -277,6 +301,8 @@ PHP_FUNCTION(bsdiff_patch)
     if (bspatch(old, oldsize, new, newsize, &stream)) {
         free(new);
         free(old);
+        BZ2_bzReadClose(&bz2err, bz2);
+        fclose(f);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to apply diff data");
         RETURN_THROWS();
     }
@@ -286,16 +312,23 @@ PHP_FUNCTION(bsdiff_patch)
     fclose(f);
 
     /* Write the new file */
-    if(((fd=open(new_file,O_CREAT|O_TRUNC|O_WRONLY,sb.st_mode))<0) ||
-        (write(fd,new,newsize)!=newsize) || (close(fd)==-1)) {
+    if ((fd = open(new_file, O_CREAT | O_TRUNC | O_WRONLY, sb.st_mode)) < 0) {
         free(new);
         free(old);
+        zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to create the new file \"%s\"", new_file);
+        RETURN_THROWS();
+    }
+    if (write(fd,new,newsize) != newsize) {
+        free(new);
+        free(old);
+        close(fd);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to create the new file \"%s\"", new_file);
         RETURN_THROWS();
     }
 
     free(new);
     free(old);
+    close(fd);
 }
 /* }}}*/
 
