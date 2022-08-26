@@ -24,10 +24,10 @@
 #include "ext/standard/info.h"
 #include "zend_exceptions.h"
 
-#include "bsdiff_arginfo.h"
 #include "bsdiff.h"
 #include "bspatch.h"
 #include "php_bsdiff.h"
+#include "php_bsdiff_arginfo.h"
 
 #include <sys/stat.h>
 #include <bzlib.h>
