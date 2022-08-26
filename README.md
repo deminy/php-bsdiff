@@ -10,7 +10,7 @@ For more information, visit his website at <http://www.daemonology.net/bsdiff/>.
 
 ## Requirements
 
-* PHP 7.4+
+* PHP 7.2 to PHP 8.x
 * BZip2 1.0+
 
 ## Installation
@@ -32,7 +32,7 @@ extension=bsdiff.so
 In case BZip2 can't be found automatically, use option `--with-bz2` to specify the installation directory of BZip2. e.g.,
 
 ```bash
-./configure --with-bz2=/usr/local/opt/bzip2 # When BZip2 is stalled via Homebrew on MacOS.
+./configure --with-bz2=/usr/local/opt/bzip2 # When BZip2 is installed via Homebrew on MacOS.
 ```
 
 ## Functions
