@@ -38,7 +38,7 @@ In case BZip2 can't be found automatically, use option `--with-bz2` to specify t
 ./configure --with-bz2=/usr/local/opt/bzip2 # When BZip2 is installed via Homebrew on MacOS.
 ```
 
-## Functions
+## Usage
 
 There are two PHP functions added by the extension:
 
@@ -53,6 +53,12 @@ function bsdiff_diff(string $old_file, string $new_file, string $diff_file): voi
   */
 function bsdiff_patch(string $old_file, string $new_file, string $diff_file): void {}
 ```
+
+---
+
+## License
+
+[The PHP license](LICENSE).
 
 [1]: https://github.com/mendsley/bsdiff
 [2]: http://www.daemonology.net/papers/bsdiff.pdf
