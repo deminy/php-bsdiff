@@ -14,9 +14,7 @@
 #include "php_bsdiff.h"
 
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <bzlib.h>
-#include <err.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
