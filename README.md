@@ -54,11 +54,5 @@ function bsdiff_diff(string $old_file, string $new_file, string $diff_file): voi
 function bsdiff_patch(string $old_file, string $new_file, string $diff_file): void {}
 ```
 
----
-
-## License
-
-MIT license.
-
 [1]: https://github.com/mendsley/bsdiff
 [2]: http://www.daemonology.net/papers/bsdiff.pdf
