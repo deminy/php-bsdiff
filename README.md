@@ -1,5 +1,8 @@
 # php-bsdiff
 
+[![Build Status](https://github.com/deminy/php-bsdiff/actions/workflows/ci.yml/badge.svg)](https://github.com/deminy/php-bsdiff/actions/workflows/ci.yml)
+[![PHP version](https://img.shields.io/badge/php-%3E%3D%207.2-8892BF.svg)](https://github.com/deminy/php-bsdiff)
+
 `bsdiff` is a PHP extension to build and apply patches to binary files.
 
 This PHP extension is based on [the bsdiff and bspatch libraries][1] maintained by Matthew Endsley. The original algorithm
