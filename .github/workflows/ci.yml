@@ -4,7 +4,7 @@ jobs:
   ubuntu:
     strategy:
       matrix:
-          version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2"]
+        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2"]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout php-bsdiff
@@ -17,6 +17,26 @@ jobs:
         run: phpize
       - name: configure
         run: ./configure --with-libdir=x86_64-linux-gnu
+      - name: make
+        run: make
+      - name: test
+        run: make test TESTS="--show-diff tests"
+  macos:
+    strategy:
+      matrix:
+        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2"]
+    runs-on: macos-latest
+    steps:
+      - name: Checkout php-bsdiff
+        uses: actions/checkout@v2
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{matrix.version}}
+      - name: phpize
+        run: phpize
+      - name: configure
+        run: ./configure --with-bz2=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr
       - name: make
         run: make
       - name: test
