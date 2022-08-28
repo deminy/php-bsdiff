@@ -54,6 +54,31 @@ function bsdiff_diff(string $old_file, string $new_file, string $diff_file): voi
 function bsdiff_patch(string $old_file, string $new_file, string $diff_file): void {}
 ```
 
+Here is an example on how to use the extension:
+
+```php
+<?php
+$old_file  = '/path/to/the/old/file';
+$new_file  = '/path/to/the/new/file';
+$diff_file = '/path/to/the/diff/file';
+
+// To create the diff file.
+try {
+    bsdiff_diff($old_file, $new_file, $diff_file);
+} catch (BsdiffException $e) {
+    // Handle the exception.
+}
+
+// To apply the diff file.
+$patched_file = '/path/to/the/patched/file';
+try {
+    bsdiff_patch($old_file, $patched_file, $diff_file);
+} catch (BsdiffException $e) {
+    // Handle the exception.
+}
+// File $patched_file will have exactly the same content as file $new_file.
+```
+
 ---
 
 ## License
