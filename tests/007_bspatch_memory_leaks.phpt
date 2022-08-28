@@ -1,5 +1,5 @@
 --TEST--
-Test memory usage
+Test memory leaks in function bsdiff_patch()
 --EXTENSIONS--
 bsdiff
 --FILE--

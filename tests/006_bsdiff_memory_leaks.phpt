@@ -1,5 +1,5 @@
 --TEST--
-Test memory usage
+Test memory leaks in function bsdiff_diff()
 --EXTENSIONS--
 bsdiff
 --FILE--
@@ -12,8 +12,14 @@ foreach ([$old_file, $new_file, $diff_file] as $file) {
     if (file_exists($file)) unlink($file);
 }
 
-$mem0 = memory_get_usage();
+// It's kind of weird that when running tests in GitHub Actions, we have to put this call to function file_put_contents()
+// before statement "$mem0 = memory_get_usage();", otherwise, the difference reported is "120" but not "0".
+// However,
+//   1. We don't need to make the same change for the 2nd test case in this file.
+//   2. The issue doesn't happen when tested locally (with or without Docker).
 file_put_contents($old_file, str_repeat("Hello World", 1997));
+
+$mem0 = memory_get_usage();
 try {
     bsdiff_diff($old_file, $new_file, $diff_file);
 } catch (BsdiffException $e) {
