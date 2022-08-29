@@ -29,14 +29,8 @@
 #include "php_bsdiff.h"
 #include "php_bsdiff_arginfo.h"
 
-#include <sys/stat.h>
 #include <bzlib.h>
 #include <fcntl.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 zend_class_entry *ce_bsdiff_exception;
 
