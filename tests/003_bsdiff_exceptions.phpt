@@ -35,6 +35,6 @@ try {
 }
 ?>
 --EXPECTF--
-string(%d) "Failed to open the old file "%s/tests/003_old.out""
-string(%d) "Failed to open the new file "%s/tests/003_new.out""
-string(%d) "Cannot open the diff file "%s/tests/003_diff.out" in write mode"
+string(%d) "Failed to open the old file "%s003_old.out""
+string(%d) "Failed to open the new file "%s003_new.out""
+string(%d) "Cannot open the diff file "%s003_diff.out" in write mode"

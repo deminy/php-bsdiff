@@ -41,3 +41,40 @@ jobs:
         run: make
       - name: test
         run: make test TESTS="--show-diff tests"
+  windows:
+    defaults:
+      run:
+        shell: cmd
+    strategy:
+      matrix:
+        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2"]
+        arch: [x64]
+        ts: [nts, ts]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout php-bsdiff
+        uses: actions/checkout@v2
+      - name: Setup PHP
+        id: setup-php
+        uses: cmb69/setup-php-sdk@v0.6
+        with:
+          version: ${{matrix.version}}
+          arch: ${{matrix.arch}}
+          ts: ${{matrix.ts}}
+      - name: Download deps
+        run: |
+          curl -LO https://windows.php.net/downloads/php-sdk/deps/vc15/x64/libbzip2-1.0.8-vc15-${{matrix.arch}}.zip
+          7z x libbzip2-1.0.8-vc15-${{matrix.arch}}.zip -o..\deps
+      - name: Enable Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{matrix.arch}}
+          toolset: ${{steps.setup-php.outputs.toolset}}
+      - name: phpize
+        run: phpize
+      - name: configure
+        run: configure --enable-bsdiff --with-bz2=..\deps --with-prefix=${{steps.setup-php.outputs.prefix}}
+      - name: make
+        run: nmake
+      - name: test
+        run: nmake test TESTS="--show-diff tests"
