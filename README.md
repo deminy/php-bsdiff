@@ -15,6 +15,7 @@ For more information, visit his website at <http://www.daemonology.net/bsdiff/>.
 
 * PHP 7.2 to PHP 8.x
 * BZip2 1.0+
+* Linux, macOS, or Windows
 
 ## Installation
 

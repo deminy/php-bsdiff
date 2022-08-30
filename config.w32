@@ -12,8 +12,8 @@ if (PHP_BZ2 != "no") {
 ARG_ENABLE('bsdiff', 'Whether to enable bsdiff support', 'no');
 
 if (PHP_BSDIFF != 'no') {
-	AC_DEFINE('HAVE_BSDIFF', 1, 'bsdiff support enabled');
+    AC_DEFINE('HAVE_BSDIFF', 1, 'bsdiff support enabled');
 
-	PHP_INSTALL_HEADERS("ext/bsdiff", "php_bsdiff.h bsdiff.h bspatch.h");
-	EXTENSION('bsdiff', 'php_bsdiff.c bsdiff.c bspatch.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
+    PHP_INSTALL_HEADERS("ext/bsdiff", "php_bsdiff.h bsdiff.h bspatch.h");
+    EXTENSION('bsdiff', 'php_bsdiff.c bsdiff.c bspatch.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
 }
