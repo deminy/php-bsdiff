@@ -4,10 +4,10 @@ Test exceptions thrown from function bsdiff_patch()
 bsdiff
 --FILE--
 <?php
-$old_file     = __DIR__ . '/004_old.out';
-$new_file     = __DIR__ . '/004_new.out';
-$diff_file    = __DIR__ . '/004_diff.out';
-$patched_file = __DIR__ . '/004_patched.out';
+$old_file     = __DIR__ . DIRECTORY_SEPARATOR . '004_old.out';
+$new_file     = __DIR__ . DIRECTORY_SEPARATOR . '004_new.out';
+$diff_file    = __DIR__ . DIRECTORY_SEPARATOR . '004_diff.out';
+$patched_file = __DIR__ . DIRECTORY_SEPARATOR . '004_patched.out';
 
 foreach ([$old_file, $new_file, $diff_file, $patched_file] as $file) {
     if (file_exists($file)) unlink($file);

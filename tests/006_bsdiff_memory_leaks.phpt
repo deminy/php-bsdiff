@@ -4,9 +4,9 @@ Test memory leaks in function bsdiff_diff()
 bsdiff
 --FILE--
 <?php
-$old_file  = __DIR__ . '/006_old.out';
-$new_file  = __DIR__ . '/006_new.out';
-$diff_file = __DIR__ . '/006_diff.out';
+$old_file  = __DIR__ . DIRECTORY_SEPARATOR . '006_old.out';
+$new_file  = __DIR__ . DIRECTORY_SEPARATOR . '006_new.out';
+$diff_file = __DIR__ . DIRECTORY_SEPARATOR . '006_diff.out';
 
 foreach ([$old_file, $new_file, $diff_file] as $file) {
     if (file_exists($file)) unlink($file);

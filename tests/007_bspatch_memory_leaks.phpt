@@ -4,10 +4,10 @@ Test memory leaks in function bsdiff_patch()
 bsdiff
 --FILE--
 <?php
-$old_file     = __DIR__ . '/007_old.out';
-$new_file     = __DIR__ . '/007_new.out';
-$diff_file    = __DIR__ . '/007_diff.out';
-$patched_file = __DIR__ . '/007_patched.out';
+$old_file     = __DIR__ . DIRECTORY_SEPARATOR . '007_old.out';
+$new_file     = __DIR__ . DIRECTORY_SEPARATOR . '007_new.out';
+$diff_file    = __DIR__ . DIRECTORY_SEPARATOR . '007_diff.out';
+$patched_file = __DIR__ . DIRECTORY_SEPARATOR . '007_patched.out';
 
 foreach ([$old_file, $new_file, $diff_file, $patched_file] as $file) {
     if (file_exists($file)) unlink($file);

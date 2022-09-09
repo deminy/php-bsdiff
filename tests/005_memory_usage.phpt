@@ -4,10 +4,10 @@ Test memory usage
 bsdiff
 --FILE--
 <?php
-$old_file     = __DIR__ . '/005_old.out';
-$new_file     = __DIR__ . '/005_new.out';
-$diff_file    = __DIR__ . '/005_diff.out';
-$patched_file = __DIR__ . '/005_patched.out';
+$old_file     = __DIR__ . DIRECTORY_SEPARATOR . '005_old.out';
+$new_file     = __DIR__ . DIRECTORY_SEPARATOR . '005_new.out';
+$diff_file    = __DIR__ . DIRECTORY_SEPARATOR . '005_diff.out';
+$patched_file = __DIR__ . DIRECTORY_SEPARATOR . '005_patched.out';
 
 file_put_contents($old_file, str_repeat("Hello World", 1997));
 file_put_contents($new_file, str_repeat("Hello PHP", 1999));
