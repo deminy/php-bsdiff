@@ -4,6 +4,9 @@ Test memory usage
 bsdiff
 --FILE--
 <?php
+// This test case doesn't work as should since the extension doesn't use function emalloc() to allocate memories.
+// It's not yet decided if it is necessary to use function emalloc().
+
 $old_file     = __DIR__ . DIRECTORY_SEPARATOR . '005_old.out';
 $new_file     = __DIR__ . DIRECTORY_SEPARATOR . '005_new.out';
 $diff_file    = __DIR__ . DIRECTORY_SEPARATOR . '005_diff.out';
