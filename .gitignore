@@ -40,3 +40,9 @@ tests/**/*.sh
 tests/**/*.db
 tests/**/*.mem
 tmp-php.ini
+
+# Ignore temporary files
+/*~
+
+# Ignore packaged PECL files
+/bsdiff-*.tgz
