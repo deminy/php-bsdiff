@@ -351,6 +351,8 @@ PHP_MINFO_FUNCTION(bsdiff)
 {
     php_info_print_table_start();
     php_info_print_table_header(2, "bsdiff support", "enabled");
+    php_info_print_table_row(2, "bsdiff version", PHP_BSDIFF_VERSION);
+    php_info_print_table_row(2, "BZip2 version", (char *) BZ2_bzlibVersion());
     php_info_print_table_end();
 }
 /* }}} */
