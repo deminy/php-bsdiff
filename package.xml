@@ -59,7 +59,9 @@
   </required>
  </dependencies>
  <providesextension>bsdiff</providesextension>
- <extsrcrelease/>
+ <extsrcrelease>
+  <configureoption default="/usr" name="with-bz2" prompt="BZip2 installation prefix"/>
+ </extsrcrelease>
  <changelog>
   <release>
    <date>2022-10-07</date>

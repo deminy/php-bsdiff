@@ -19,6 +19,20 @@ For more information, visit his website at <http://www.daemonology.net/bsdiff/>.
 
 ## Installation
 
+## Install via PECL
+
+```bash
+pecl install bsdiff
+```
+
+In case BZip2 can't be found automatically, use option `--with-bz2` to specify the installation directory of BZip2. e.g.,
+
+```bash
+pecl install -D 'with-bz2="/usr/local/opt/bzip2"'
+```
+
+## Manual Installation
+
 ```bash
 phpize
 ./configure
