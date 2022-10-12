@@ -23,12 +23,15 @@ For more information, visit his website at <http://www.daemonology.net/bsdiff/>.
 
 ```bash
 pecl install bsdiff
+
+# or, if you want to install it without the prompts (i.e., using default installation option(s)):
+yes '' | pecl install bsdiff
 ```
 
-In case BZip2 can't be found automatically, use option `--with-bz2` to specify the installation directory of BZip2. e.g.,
+In case BZip2 can't be found automatically, use option `with-bz2` to specify the installation directory of BZip2. e.g.,
 
 ```bash
-pecl install -D 'with-bz2="/usr/local/opt/bzip2"'
+pecl install -D 'with-bz2="/usr/local/opt/bzip2"' bsdiff # If BZip2 is installed via Homebrew on MacOS.
 ```
 
 ## Manual Installation
@@ -50,7 +53,7 @@ extension=bsdiff.so
 In case BZip2 can't be found automatically, use option `--with-bz2` to specify the installation directory of BZip2. e.g.,
 
 ```bash
-./configure --with-bz2=/usr/local/opt/bzip2 # When BZip2 is installed via Homebrew on MacOS.
+./configure --with-bz2=/usr/local/opt/bzip2 # If BZip2 is installed via Homebrew on MacOS.
 ```
 
 ## Usage
