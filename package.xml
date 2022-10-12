@@ -12,7 +12,7 @@
  </lead>
  <date>2022-10-12</date>
  <version>
-  <release>0.1.2</release>
+  <release>0.1.3dev</release>
   <api>0.1.0</api>
  </version>
  <stability>
@@ -21,8 +21,7 @@
  </stability>
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>
-- Add PECL configuration option "with-bz2".
-- Include version numbers in phpinfo.
+-
  </notes>
  <contents>
   <dir name="/">
