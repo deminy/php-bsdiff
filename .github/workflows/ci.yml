@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout php-bsdiff
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -28,7 +28,7 @@ jobs:
     runs-on: macos-12
     steps:
       - name: Checkout php-bsdiff
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -53,7 +53,7 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout php-bsdiff
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup PHP
         id: setup-php
         uses: cmb69/setup-php-sdk@v0.6
