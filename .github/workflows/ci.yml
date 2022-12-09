@@ -5,7 +5,7 @@ jobs:
     strategy:
       matrix:
         version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2"]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout php-bsdiff
         uses: actions/checkout@v2
@@ -25,7 +25,7 @@ jobs:
     strategy:
       matrix:
         version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2"]
-    runs-on: macos-latest
+    runs-on: macos-12
     steps:
       - name: Checkout php-bsdiff
         uses: actions/checkout@v2
@@ -50,7 +50,7 @@ jobs:
         version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2"]
         arch: [x64]
         ts: [nts, ts]
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout php-bsdiff
         uses: actions/checkout@v2
