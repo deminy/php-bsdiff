@@ -4,11 +4,11 @@ jobs:
   ubuntu:
     strategy:
       matrix:
-        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2"]
+        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3"]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout php-bsdiff
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -24,11 +24,11 @@ jobs:
   macos:
     strategy:
       matrix:
-        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2"]
+        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3"]
     runs-on: macos-12
     steps:
       - name: Checkout php-bsdiff
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -53,10 +53,10 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout php-bsdiff
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup PHP
         id: setup-php
-        uses: cmb69/setup-php-sdk@v0.6
+        uses: cmb69/setup-php-sdk@v0.7
         with:
           version: ${{matrix.version}}
           arch: ${{matrix.arch}}
