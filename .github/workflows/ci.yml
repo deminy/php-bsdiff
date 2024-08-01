@@ -24,7 +24,7 @@ jobs:
   macos:
     strategy:
       matrix:
-        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3"]
+        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4"]
     runs-on: macos-12
     steps:
       - name: Checkout php-bsdiff
@@ -50,7 +50,16 @@ jobs:
         version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3"]
         arch: [x64]
         ts: [nts, ts]
-    runs-on: windows-2022
+        os: [windows-2019, windows-2022]
+        exclude:
+          - { os: windows-2019, version: "8.3" }
+          - { os: windows-2019, version: "8.2" }
+          - { os: windows-2019, version: "8.1" }
+          - { os: windows-2019, version: "8.0" }
+          - { os: windows-2022, version: "7.4" }
+          - { os: windows-2022, version: "7.3" }
+          - { os: windows-2022, version: "7.2" }
+    runs-on: ${{matrix.os}}
     steps:
       - name: Checkout php-bsdiff
         uses: actions/checkout@v4
