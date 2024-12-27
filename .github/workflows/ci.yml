@@ -4,7 +4,7 @@ jobs:
   ubuntu:
     strategy:
       matrix:
-        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3"]
+        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4"]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout php-bsdiff
@@ -47,11 +47,12 @@ jobs:
         shell: cmd
     strategy:
       matrix:
-        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3"]
+        version: ["7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4"]
         arch: [x64]
         ts: [nts, ts]
         os: [windows-2019, windows-2022]
         exclude:
+          - { os: windows-2019, version: "8.4" }
           - { os: windows-2019, version: "8.3" }
           - { os: windows-2019, version: "8.2" }
           - { os: windows-2019, version: "8.1" }
@@ -65,11 +66,12 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup PHP
         id: setup-php
-        uses: php/setup-php-sdk@v0.8
+        uses: php/setup-php-sdk@v0.10
         with:
           version: ${{matrix.version}}
           arch: ${{matrix.arch}}
           ts: ${{matrix.ts}}
+          cache: true
       - name: Download deps
         run: |
           curl -LO https://windows.php.net/downloads/php-sdk/deps/vc15/x64/libbzip2-1.0.8-vc15-${{matrix.arch}}.zip
