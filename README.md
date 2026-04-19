@@ -6,7 +6,7 @@
 `bsdiff` is a PHP extension to build and apply patches to binary files.
 
 This PHP extension is based on [the bsdiff and bspatch libraries][1] maintained by Matthew Endsley. The original algorithm
-and implementation was developed by Colin Percival. The algorithm is detailed in Colin's paper, [Naïve Differences of Executable Code][1].
+and implementation was developed by Colin Percival. The algorithm is detailed in Colin's paper, [Naïve Differences of Executable Code][2].
 For more information, visit his website at <http://www.daemonology.net/bsdiff/>.
 
 ---
@@ -54,6 +54,9 @@ In case BZip2 can't be found automatically, use option `--with-bz2` to specify t
 
 ```bash
 ./configure --with-bz2=/usr/local/opt/bzip2 # If BZip2 is installed via Homebrew on MacOS.
+
+# or,
+./configure --with-bz2=/path/to/bzip2 # If BZip2 is installed in a non-standard location.
 ```
 
 ## Usage

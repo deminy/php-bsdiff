@@ -159,7 +159,6 @@ PHP_FUNCTION(bsdiff_diff)
         RETURN_THROWS();
     }
 
-
     if (NULL == (bz2 = BZ2_bzWriteOpen(&bz2err, pf, 9, 0, 0))) {
         free(old);
         free(new);
