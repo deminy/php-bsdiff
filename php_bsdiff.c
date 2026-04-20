@@ -183,6 +183,9 @@ cleanup:
     if (old_str) {
         zend_string_release(old_str);
     }
+    if (EG(exception)) {
+        RETURN_THROWS();
+    }
 }
 /* }}} */
 
@@ -311,6 +314,9 @@ cleanup:
     }
     if (old_str) {
         zend_string_release(old_str);
+    }
+    if (EG(exception)) {
+        RETURN_THROWS();
     }
 }
 /* }}} */
