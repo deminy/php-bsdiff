@@ -140,8 +140,15 @@ PHP_FUNCTION(bsdiff_diff)
     }
     close(fd);
 
-    /* Create the patch file */
-    if ((pf = fopen(diff_file, "w")) == NULL) {
+    /* Create the patch file.
+     *
+     * The "b" flag is required for correctness on Windows when the extension
+     * is loaded by a host that has not set the MSVC global `_fmode = _O_BINARY`.
+     * The PHP CLI and CGI SAPIs both set it at startup, so in practice every
+     * PHP process on Windows already opens streams in binary mode regardless
+     * of this flag, but specifying it explicitly removes that dependency and
+     * documents the intent. The flag is a no-op on POSIX systems. */
+    if ((pf = fopen(diff_file, "wb")) == NULL) {
         free(old);
         free(new);
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Cannot open the diff file \"%s\" in write mode", diff_file);
@@ -214,8 +221,9 @@ PHP_FUNCTION(bsdiff_patch)
     struct bspatch_stream stream;
     struct stat sb;
 
-    /* Open patch file */
-    if ((f = fopen(diff_file, "r")) == NULL) {
+    /* Open patch file. See the matching comment in bsdiff_diff() for why the
+     * "b" flag is specified explicitly. */
+    if ((f = fopen(diff_file, "rb")) == NULL) {
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Cannot open diff file \"%s\" in read mode", diff_file);
         RETURN_THROWS();
     }
