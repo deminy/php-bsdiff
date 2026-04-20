@@ -4,9 +4,6 @@ Test memory usage
 bsdiff
 --FILE--
 <?php
-// This test case doesn't work as should since the extension doesn't use function emalloc() to allocate memories.
-// It's not yet decided if it is necessary to use function emalloc().
-
 $old_file     = __DIR__ . DIRECTORY_SEPARATOR . '005_old.out';
 $new_file     = __DIR__ . DIRECTORY_SEPARATOR . '005_new.out';
 $diff_file    = __DIR__ . DIRECTORY_SEPARATOR . '005_diff.out';
@@ -15,6 +12,14 @@ $patched_file = __DIR__ . DIRECTORY_SEPARATOR . '005_patched.out';
 file_put_contents($old_file, str_repeat("Hello World", 1997));
 file_put_contents($new_file, str_repeat("Hello PHP", 1999));
 
+// Verify that bsdiff allocations are tracked by PHP's memory manager:
+// peak usage must increase after a bsdiff_diff() call.
+$peak0 = memory_get_peak_usage();
+bsdiff_diff($old_file, $new_file, $diff_file);
+$peak1 = memory_get_peak_usage();
+var_dump($peak1 > $peak0);
+
+// Verify no memory leaks across repeated calls.
 $mem0 = memory_get_usage();
 
 for ($i = 0; $i <= 100; $i++) {
@@ -29,4 +34,5 @@ $mem1 = memory_get_usage();
 var_dump($mem1 - $mem0);
 ?>
 --EXPECT--
+bool(true)
 int(0)
