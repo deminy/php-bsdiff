@@ -57,5 +57,5 @@ try {
 string(%d) "Cannot open diff file "%s004_diff.out" in read mode"
 string(%d) "The diff file is corrupted (missing header information)"
 string(%d) "The diff file is corrupted (invalid header information)"
-string(%d) "Failed to open the old file "%s004_old.out""
+string(%d) "Failed to stat the old file "%s004_old.out""
 string(%d) "Failed to create the new file "%s004_patched.out""
