@@ -96,6 +96,7 @@ PHP_FUNCTION(bsdiff_diff)
     zend_string *old_str = NULL;
     zend_string *new_str = NULL;
     php_stream *php_s;
+    php_stream *diff_s = NULL;
 
     stream.malloc = php_bsdiff_emalloc;
     stream.free = php_bsdiff_efree;
@@ -124,14 +125,25 @@ PHP_FUNCTION(bsdiff_diff)
 
     /* Create the patch file.
      *
-     * fopen() with a FILE* is kept here because the bzip2 library requires it.
+     * The diff file is opened as a php_stream so that PHP's resource tracker
+     * will close it automatically on request shutdown — even if emalloc
+     * triggers a fatal error (longjmp) inside the bsdiff library, skipping
+     * our cleanup block. The FILE* needed by bzip2 is obtained via
+     * php_stream_cast(); plain file streams are backed by a FILE* internally,
+     * so the cast simply returns the underlying handle with no overhead.
+     *
      * The "b" flag is required for correctness on Windows when the extension
      * is loaded by a host that has not set the MSVC global `_fmode = _O_BINARY`.
      * The PHP CLI and CGI SAPIs both set it at startup, so in practice every
      * PHP process on Windows already opens streams in binary mode regardless
      * of this flag, but specifying it explicitly removes that dependency and
      * documents the intent. The flag is a no-op on POSIX systems. */
-    if ((pf = fopen(diff_file, "wb")) == NULL) {
+    diff_s = php_stream_open_wrapper(diff_file, "wb", 0, NULL);
+    if (!diff_s) {
+        zend_throw_exception_ex(ce_bsdiff_exception, 0, "Cannot open the diff file \"%s\" in write mode", diff_file);
+        goto cleanup;
+    }
+    if (php_stream_cast(diff_s, PHP_STREAM_AS_STDIO, (void **)&pf, 0) == FAILURE) {
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Cannot open the diff file \"%s\" in write mode", diff_file);
         goto cleanup;
     }
@@ -167,15 +179,15 @@ PHP_FUNCTION(bsdiff_diff)
         goto cleanup;
     }
 
-    fclose(pf);
-    pf = NULL;
+    php_stream_close(diff_s);
+    diff_s = NULL;
 
 cleanup:
     if (bz2) {
         BZ2_bzWriteClose(&bz2err, bz2, 0, NULL, NULL);
     }
-    if (pf) {
-        fclose(pf);
+    if (diff_s) {
+        php_stream_close(diff_s);
     }
     if (new_str) {
         zend_string_release(new_str);
@@ -211,11 +223,18 @@ PHP_FUNCTION(bsdiff_patch)
     zend_stat_t sb;
     zend_string *old_str = NULL;
     php_stream *php_s;
+    php_stream *diff_s = NULL;
 
-    /* Open patch file. fopen() with a FILE* is kept here because the bzip2
-     * library requires it. See the matching comment in bsdiff_diff() for why
-     * the "b" flag is specified explicitly. */
-    if ((f = fopen(diff_file, "rb")) == NULL) {
+    /* Open patch file.
+     *
+     * The diff file is opened as a php_stream (see the matching comment in bsdiff_diff() for the rationale).
+     * The FILE* needed by bzip2 is obtained via php_stream_cast(). */
+    diff_s = php_stream_open_wrapper(diff_file, "rb", 0, NULL);
+    if (!diff_s) {
+        zend_throw_exception_ex(ce_bsdiff_exception, 0, "Cannot open diff file \"%s\" in read mode", diff_file);
+        goto cleanup;
+    }
+    if (php_stream_cast(diff_s, PHP_STREAM_AS_STDIO, (void **)&f, 0) == FAILURE) {
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Cannot open diff file \"%s\" in read mode", diff_file);
         goto cleanup;
     }
@@ -283,8 +302,8 @@ PHP_FUNCTION(bsdiff_patch)
     /* Clean up the bzip2 reads and diff file before writing output */
     BZ2_bzReadClose(&bz2err, bz2);
     bz2 = NULL;
-    fclose(f);
-    f = NULL;
+    php_stream_close(diff_s);
+    diff_s = NULL;
 
     /* Write the new file */
     php_s = php_stream_open_wrapper(new_file, "wb", 0, NULL);
@@ -306,8 +325,8 @@ cleanup:
     if (bz2) {
         BZ2_bzReadClose(&bz2err, bz2);
     }
-    if (f) {
-        fclose(f);
+    if (diff_s) {
+        php_stream_close(diff_s);
     }
     if (new_buf) {
         efree(new_buf);
