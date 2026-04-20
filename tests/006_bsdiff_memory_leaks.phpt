@@ -12,12 +12,13 @@ foreach ([$old_file, $new_file, $diff_file] as $file) {
     if (file_exists($file)) unlink($file);
 }
 
-// It's kind of weird that when running tests in GitHub Actions, we have to put this call to function file_put_contents()
-// before statement "$mem0 = memory_get_usage();", otherwise, the difference reported is "120" but not "0".
-// However,
-//   1. We don't need to make the same change for the 2nd test case in this file.
-//   2. The issue doesn't happen when tested locally (with or without Docker).
+// Create test files and warm up PHP stream read internals before measuring.
+// The first php_stream_open_wrapper() call triggers one-time internal allocations (e.g.,
+// resource hash table growth) that persist after the stream is closed. Warming up here
+// ensures those allocations don't skew the measurement.
 file_put_contents($old_file, str_repeat("Hello World", 1997));
+$tmp = file_get_contents($old_file);
+unset($tmp);
 
 $mem0 = memory_get_usage();
 try {
@@ -28,10 +29,14 @@ try {
     var_dump($mem1 - $mem0);
 }
 
-$mem2 = memory_get_usage();
 file_put_contents($new_file, str_repeat("Hello PHP", 1999));
 touch($diff_file);
 chmod($diff_file, 0444);
+// Warm up stream read path for new_file before measuring
+$tmp = file_get_contents($new_file);
+unset($tmp);
+
+$mem2 = memory_get_usage();
 try {
     bsdiff_diff($old_file, $new_file, $diff_file);
 } catch (BsdiffException $e) {
