@@ -59,7 +59,7 @@ jobs:
           php-version: ${{ matrix.php-version }}
           arch: ${{ matrix.arch }}
           ts: ${{ matrix.ts }}
-          libs: bzip2
+          libs: libbzip2
           args: --enable-bsdiff --with-bz2=..\deps
           run-tests: true
           test-runner-args: "--show-diff tests"
