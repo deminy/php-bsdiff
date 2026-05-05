@@ -10,9 +10,9 @@
   <email>deminy@php.net</email>
   <active>yes</active>
  </lead>
- <date>2022-10-12</date>
+ <date>2026-05-05</date>
  <version>
-  <release>0.1.3dev</release>
+  <release>0.2.0</release>
   <api>0.1.0</api>
  </version>
  <stability>
@@ -21,7 +21,11 @@
  </stability>
  <license uri="http://www.php.net/license">PHP License</license>
  <notes>
--
+- Use emalloc/efree for internal allocations so bsdiff respects memory_limit and is visible to PHP's memory tracking.
+- Replace POSIX file I/O with PHP streams and consolidate cleanup.
+- Explicit binary-mode flag ("wb"/"rb") for diff files, fixing potential corruption on Windows.
+- Improve BZip2 auto-detection in config.m4.
+- Add PHP 8.3, 8.4, and 8.5 to CI matrix.
  </notes>
  <contents>
   <dir name="/">
@@ -35,6 +39,7 @@
    <file name="php_bsdiff.h" role="src"/>
    <file name="php_bsdiff.stub.php" role="src"/>
    <file name="php_bsdiff_arginfo.h" role="src"/>
+   <file name="CHANGELOG.md" role="doc"/>
    <file name="LICENSE" role="doc"/>
    <file name="README.md" role="doc"/>
    <dir name="tests">
@@ -45,6 +50,10 @@
     <file name="005_memory_usage.phpt" role="test"/>
     <file name="006_bsdiff_memory_leaks.phpt" role="test"/>
     <file name="007_bspatch_memory_leaks.phpt" role="test"/>
+    <file name="008_bsdiff_binary_roundtrip.phpt" role="test"/>
+    <file name="009_bspatch_binary_roundtrip.phpt" role="test"/>
+    <file name="010_bsdiff_diff_memory_exhausted.phpt" role="test"/>
+    <file name="011_bsdiff_patch_memory_exhausted.phpt" role="test"/>
    </dir>
   </dir>
  </contents>
