@@ -34,6 +34,18 @@ In case BZip2 can't be found automatically, use option `with-bz2` to specify the
 pecl install -D 'with-bz2="/usr/local/opt/bzip2"' bsdiff # If BZip2 is installed via Homebrew on MacOS.
 ```
 
+## Install via PIE
+
+```bash
+composer require bsdiff/bsdiff
+```
+
+In case BZip2 can't be found automatically, pass the `with-bz2` option:
+
+```bash
+composer require bsdiff/bsdiff -- --with-bz2=/usr/local/opt/bzip2
+```
+
 ## Manual Installation
 
 ```bash

@@ -1,0 +1,23 @@
+{
+    "name": "bsdiff/bsdiff",
+    "type": "php-ext",
+    "license": "PHP-3.01",
+    "description": "A PHP extension to build and apply patches to binary files.",
+    "require": {
+        "php": ">=7.2.0"
+    },
+    "php-ext": {
+        "extension-name": "bsdiff",
+        "configure-options": [
+            {
+                "name": "enable-bsdiff",
+                "description": "Enable bsdiff support"
+            },
+            {
+                "name": "with-bz2",
+                "description": "BZip2 installation prefix",
+                "needs-value": true
+            }
+        ]
+    }
+}
