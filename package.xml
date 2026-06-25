@@ -19,7 +19,7 @@
   <release>stable</release>
   <api>stable</api>
  </stability>
- <license uri="http://www.php.net/license">PHP License</license>
+ <license uri="http://www.php.net/license">PHP-3.01 AND BSD-2-Clause</license>
  <notes>
 - Add composer.json for installation via PIE (PHP Installer for Extensions).
  </notes>
