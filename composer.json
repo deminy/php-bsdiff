@@ -1,7 +1,7 @@
 {
     "name": "bsdiff/bsdiff",
     "type": "php-ext",
-    "license": "PHP-3.01",
+    "license": "(PHP-3.01 AND BSD-2-Clause)",
     "description": "A PHP extension to build and apply patches to binary files.",
     "require": {
         "php": ">=7.2.0"
