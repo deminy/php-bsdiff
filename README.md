@@ -118,7 +118,8 @@ try {
 
 ## License
 
-[The PHP license](LICENSE).
+The extension is licensed under the [Modified BSD License (BSD-3-Clause)](LICENSE). The bundled bsdiff/bspatch
+libraries are licensed under the BSD-2-Clause license (included in the same [LICENSE](LICENSE) file).
 
 [the bsdiff and bspatch libraries]: https://github.com/mendsley/bsdiff
 [Naïve Differences of Executable Code]: http://www.daemonology.net/papers/bsdiff.pdf
