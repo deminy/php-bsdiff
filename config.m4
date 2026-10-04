@@ -37,7 +37,7 @@ if test "$PHP_BSDIFF" != "no"; then
     fi
   fi
 
-  PHP_CHECK_LIBRARY(bz2, BZ2_bzWriteOpen,
+  PHP_CHECK_LIBRARY(bz2, BZ2_bzCompressInit,
   [
     PHP_ADD_INCLUDE($BZIP_DIR/include)
     PHP_ADD_LIBRARY_WITH_PATH(bz2, $BZIP_DIR/$PHP_LIBDIR, BSDIFF_SHARED_LIBADD)
@@ -51,5 +51,5 @@ if test "$PHP_BSDIFF" != "no"; then
 
   AC_DEFINE(HAVE_BSDIFF, 1, [ Have bsdiff support ])
 
-  PHP_NEW_EXTENSION(bsdiff, php_bsdiff.c bsdiff.c bspatch.c, $ext_shared,,-I@ext_srcdir@)
+  PHP_NEW_EXTENSION(bsdiff, php_bsdiff.c bsdiff.c bspatch.c, $ext_shared,,-I@ext_srcdir@ -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
 fi

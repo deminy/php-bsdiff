@@ -26,7 +26,7 @@ CI (`.github/workflows/ci.yml`) builds and tests every PHP version from 7.2 to 8
 ## Architecture
 
 - `bsdiff.c` / `bsdiff.h` / `bspatch.c` / `bspatch.h`: the bundled bsdiff library from https://github.com/mendsley/bsdiff (BSD-2-Clause). It works on in-memory buffers and talks to the outside world only through the `bsdiff_stream` / `bspatch_stream` callback structs. Keep changes here minimal. One local change: `offtout()` and `offtin()` are non-static so `php_bsdiff.c` can write and parse the patch header.
-- `php_bsdiff.c`: the PHP binding. It reads input files into `zend_string`s with PHP streams, wraps the diff file's `FILE*` in a BZip2 stream, and passes callbacks into the library. The patch format is the 16-byte magic `ENDSLEY/BSDIFF43`, an 8-byte new-file size, then the bzip2-compressed control/diff/extra data.
+- `php_bsdiff.c`: the PHP binding. It reads input files into `zend_string`s with PHP streams, compresses or decompresses the diff data with libbz2's `bz_stream` API on top of the diff file's PHP stream, and passes read/write callbacks into the library. The patch format is the 16-byte magic `ENDSLEY/BSDIFF43`, an 8-byte new-file size, then the bzip2-compressed control/diff/extra data.
 - `php_bsdiff.stub.php` is the source of truth for function signatures. `php_bsdiff_arginfo.h` is generated from it with php-src's `build/gen_stub.php`. Edit the stub and regenerate; do not hand-edit the arginfo header.
 - `php_bsdiff.h` holds `PHP_BSDIFF_VERSION` and a `RETURN_THROWS()` shim for PHP < 8.0.
 
@@ -34,11 +34,12 @@ CI (`.github/workflows/ci.yml`) builds and tests every PHP version from 7.2 to 8
 
 These rules matter, and tests check them:
 
-- All library allocations go through `emalloc`/`efree` via the `php_bsdiff_emalloc`/`php_bsdiff_efree` wrappers assigned to `stream.malloc`/`stream.free`. Allocations therefore count against `memory_limit` and show up in `memory_get_usage()` and PHP's leak detector. Do not reintroduce libc `malloc`/`free`.
-- Because `emalloc` can bail out with a fatal error (a longjmp) from inside the library, files are opened as `php_stream`s, so PHP's resource list closes them on request shutdown. The `FILE*` that bzip2 needs comes from `php_stream_cast(..., PHP_STREAM_AS_STDIO, ...)`. Do not switch to raw `fopen`.
+- All allocations, both the bsdiff library's and libbz2's, go through `emalloc`/`efree`. The library gets them via `stream.malloc`/`stream.free`; libbz2 gets them via `bzalloc`/`bzfree` on its low-level `bz_stream` API. They therefore count against `memory_limit` and show up in `memory_get_usage()` and PHP's leak detector, and PHP reclaims them if a fatal error (a longjmp) skips the cleanup code. Do not reintroduce libc `malloc`/`free`, or the `BZFILE` API, which allocates with `malloc`.
+- All file I/O goes through `php_stream`s (`php_stream_read`/`php_stream_write`; no `FILE*`), so stream wrappers and `open_basedir` behave the same on every platform. Do not use raw `fopen` or path-based `VCWD_*` calls on user-supplied paths.
 - Open files with explicit binary modes (`"rb"`/`"wb"`) for Windows.
-- Each function uses one `cleanup:` label that releases everything and ends with `if (EG(exception)) RETURN_THROWS();`. Errors throw `BsdiffException` through `zend_throw_exception_ex(ce_bsdiff_exception, ...)` and then `goto cleanup`.
-- `bsdiff_patch()` copies the old file's permissions onto the new file.
+- Each function uses one `cleanup:` label that releases everything and ends with `if (EG(exception)) RETURN_THROWS();`. Errors throw `BsdiffException` through `zend_throw_exception_ex(ce_bsdiff_exception, ...)` and then `goto cleanup`. A failed run removes its partially written output file; in `bsdiff_diff()`, a `zend_try` block does this for fatal errors too.
+- Everything in a diff file is untrusted. The output size in the header is checked against `SIZE_MAX` and `memory_limit` before allocating; the bzip2 stream must end exactly where `bspatch()` stops reading; and the amount of data `bspatch()` may read is capped, which stops control data that produces no output.
+- A file created by `bsdiff_patch()` gets the old file's permission bits (`& 0777`); an existing file keeps its own.
 
 ### Tests
 

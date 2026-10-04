@@ -51,6 +51,11 @@
     <file name="009_bspatch_binary_roundtrip.phpt" role="test"/>
     <file name="010_bsdiff_diff_memory_exhausted.phpt" role="test"/>
     <file name="011_bsdiff_patch_memory_exhausted.phpt" role="test"/>
+    <file name="012_bspatch_invalid_length.phpt" role="test"/>
+    <file name="013_directory_input.phpt" role="test"/>
+    <file name="014_bspatch_permissions.phpt" role="test"/>
+    <file name="015_bspatch_corrupted_data.phpt" role="test"/>
+    <file name="016_bspatch_zero_progress_control_data.phpt" role="test"/>
    </dir>
   </dir>
  </contents>

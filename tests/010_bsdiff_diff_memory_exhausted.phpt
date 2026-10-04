@@ -18,6 +18,11 @@ file_put_contents($new_file, str_repeat("B", 524288));
 // but high enough that PHP itself can still run.
 ini_set('memory_limit', '2M');
 
+// The partially written diff file is removed.
+register_shutdown_function(function () use ($diff_file) {
+    var_dump(file_exists($diff_file));
+});
+
 bsdiff_diff($old_file, $new_file, $diff_file);
 ?>
 --CLEAN--
@@ -28,3 +33,4 @@ bsdiff_diff($old_file, $new_file, $diff_file);
 ?>
 --EXPECTF--
 Fatal error: Allowed memory size of %d bytes exhausted (tried to allocate %d bytes) in %s on line %d
+bool(false)
