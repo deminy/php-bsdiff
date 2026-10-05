@@ -7,6 +7,7 @@
 - `bsdiff_patch()`: stop crafted diff files whose control data produces no output from running for an unbounded amount of time.
 - Throw an exception when an input file is a directory or a read error occurs, instead of treating it as an empty file. (Before PHP 7.4, read errors are detected for local files only, as a short read.)
 - `bsdiff_patch()`: the new file gets the permission bits of the old file without setuid/setgid/sticky bits. They are set through the file descriptor before any data is written, instead of by path after writing.
+- `bsdiff_patch()`: do not change the permissions of an existing output that is not a regular file (such as `/dev/null`, a terminal, or a FIFO), or of a file reached through a symbolic link or with other hard links. Before, they all got the permissions of the old file, which could make another user's file world-writable.
 - `bsdiff_patch()`: get the permissions of the old file from the opened stream instead of a separate `stat()` call, so stream wrappers and `open_basedir` are respected.
 - Remove the partially written output file when `bsdiff_diff()` or `bsdiff_patch()` fails, including when `bsdiff_diff()` exceeds the memory limit. Only local files that the call created are removed; existing files, symbolic links, devices, and files of other stream wrappers are left in place.
 - Fix a memory leak of about 7.5 MB of bzip2 state when `bsdiff_diff()` exceeds the memory limit.
@@ -20,7 +21,7 @@
 - Windows: configuration fails with an error when BZip2 is not found, instead of failing later at link time.
 - `bsdiff_patch()` rejects diff files with data after the end of the bzip2 stream (e.g., an appended signature). Diff files created by `bsdiff_diff()` have none.
 - `bsdiff_patch()` reports control data that exceeds what a valid diff can contain as "The diff file is corrupted (too much control data)".
-- bzip2 state now counts against `memory_limit`: about 7.6 MB for `bsdiff_diff()` and 3.7 MB for `bsdiff_patch()`. Scripts that ran close to their memory limit may need a higher one.
+- bzip2 state now counts against `memory_limit`: about 7.6 MB for `bsdiff_diff()` and 3.5 MB for `bsdiff_patch()`. Scripts that ran close to their memory limit may need a higher one; `bsdiff_patch()` needs a `memory_limit` of at least about 6 MB.
 
 ## v0.2.1 (2026-06-24)
 

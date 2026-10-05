@@ -62,6 +62,8 @@
     <file name="020_bsdiff_symlink_output_kept.phpt" role="test"/>
     <file name="021_bspatch_header_only.phpt" role="test"/>
     <file name="022_bspatch_memory_limit_boundary.phpt" role="test"/>
+    <file name="023_bspatch_permissions_links.phpt" role="test"/>
+    <file name="024_bspatch_small_memory_limit.phpt" role="test"/>
    </dir>
   </dir>
  </contents>

@@ -38,9 +38,13 @@
 #define PHP_BSDIFF_MAGIC     "ENDSLEY/BSDIFF43"
 #define PHP_BSDIFF_BUF_SIZE  8192
 
-/* Memory that bsdiff_patch() needs besides the output buffer: about 3.7 MB for bzip2's decompressor state, plus slack
- * for the memory manager rounding up large allocations. */
-#define PHP_BSDIFF_PATCH_MEMORY_RESERVE (6 * 1024 * 1024)
+/* The block that bzip2's decompressor allocates when it starts reading data: 4 bytes per byte of its largest block
+ * size, 900 KB. (Its 64 KB struct is allocated earlier, by BZ2_bzDecompressInit().) */
+#define PHP_BSDIFF_BZ_DECOMPRESS_SIZE (4 * 900000)
+
+/* The memory manager's chunk size, and the largest block it allocates inside a chunk (ZEND_MM_MAX_LARGE_SIZE). */
+#define PHP_BSDIFF_MM_CHUNK_SIZE     (2 * 1024 * 1024)
+#define PHP_BSDIFF_MM_MAX_LARGE_SIZE (PHP_BSDIFF_MM_CHUNK_SIZE - 4096)
 
 static zend_class_entry *ce_bsdiff_exception;
 
@@ -85,16 +89,44 @@ static void php_bsdiff_unlink(const char *path)
     }
 }
 
-/* Set the permission bits of an output file, before any data is written to it. Uses the file descriptor where
- * possible, so that the path cannot be swapped for another file in between. */
-static void php_bsdiff_set_mode(php_stream *s, const char *path, zend_long mode)
+/* Set the permission bits of a local output file, before any data is written to it. Uses the file descriptor where
+ * possible, so that the path cannot be swapped for another file in between.
+ *
+ * A file that this call created is always changed. An existing file is changed only if it is a regular file that the
+ * path names directly, so that devices, FIFOs, and files reached through a symbolic or hard link keep their
+ * permissions. */
+static void php_bsdiff_set_mode(php_stream *s, const char *path, zend_long mode, int created)
 {
     const char *path_for_open = path;
-    php_stream_wrapper *wrapper;
+    php_stream_wrapper *wrapper = php_stream_locate_url_wrapper(path, &path_for_open, 0);
+    php_stream_statbuf link_ssb;
+#ifndef PHP_WIN32
+    php_stream_statbuf ssb;
+    int fd;
+#endif
+
+    if (!wrapper) {
+        return;
+    }
+
+    if (!created) {
+        if (!wrapper->wops->url_stat ||
+            wrapper->wops->url_stat(wrapper, path_for_open, PHP_STREAM_URL_STAT_LINK | PHP_STREAM_URL_STAT_QUIET, &link_ssb, NULL) != 0 ||
+            !S_ISREG(link_ssb.sb.st_mode)) {
+            return;
+        }
+#ifndef PHP_WIN32
+        /* The path must still name the file that was opened, and that file must have no other links. */
+        if (php_stream_stat(s, &ssb) != 0 ||
+            ssb.sb.st_dev != link_ssb.sb.st_dev ||
+            ssb.sb.st_ino != link_ssb.sb.st_ino ||
+            ssb.sb.st_nlink != 1) {
+            return;
+        }
+#endif
+    }
 
 #ifndef PHP_WIN32
-    int fd;
-
     if (php_stream_cast(s, PHP_STREAM_AS_FD, (void **)&fd, 0) == SUCCESS) {
         (void)fchmod(fd, (mode_t)mode);
         return;
@@ -102,8 +134,7 @@ static void php_bsdiff_set_mode(php_stream *s, const char *path, zend_long mode)
 #endif
 
     /* Through the stream wrapper, the same way PHP's chmod() does. */
-    wrapper = php_stream_locate_url_wrapper(path, &path_for_open, 0);
-    if (wrapper && wrapper->wops->stream_metadata) {
+    if (wrapper->wops->stream_metadata) {
         wrapper->wops->stream_metadata(wrapper, path, PHP_STREAM_META_ACCESS, &mode, NULL);
     }
 }
@@ -474,12 +505,29 @@ static const char *php_bsdiff_read_error(php_bsdiff_read_status status)
 }
 /* }}} */
 
-/* Check whether an output buffer of the given size is likely to fit in memory_limit. This is a best-effort check: it
- * cannot account for everything, so a fatal error is still possible very close to the limit. */
-static int php_bsdiff_fits_memory_limit(uint64_t size)
+/* The memory that the memory manager allocates for a block larger than PHP_BSDIFF_MM_MAX_LARGE_SIZE. Such blocks are
+ * allocated on their own, rounded up to the page size, or to the chunk size on Windows. */
+static uint64_t php_bsdiff_block_size(uint64_t size)
+{
+#ifdef PHP_WIN32
+    const uint64_t step = PHP_BSDIFF_MM_CHUNK_SIZE;
+#else
+    const uint64_t step = 4096;
+#endif
+
+    if (size > UINT64_MAX - step) {
+        return UINT64_MAX;
+    }
+    return (size + step - 1) & ~(step - 1);
+}
+
+/* Check whether a block of the given size (0 for none), and then another reserve bytes, are likely to fit in
+ * memory_limit. This is a best-effort check: it cannot account for everything, so a fatal error is still possible very
+ * close to the limit. */
+static int php_bsdiff_fits_memory_limit(uint64_t size, uint64_t reserve)
 {
     zend_long limit = PG(memory_limit);
-    uint64_t usage;
+    uint64_t usage, available, min_needed, max_needed;
 
     if (limit <= 0) {
         return 1;
@@ -487,8 +535,31 @@ static int php_bsdiff_fits_memory_limit(uint64_t size)
 
     /* The limit applies to the memory that the memory manager has allocated, not the memory in use. */
     usage = (uint64_t)zend_memory_usage(1);
+    if (usage >= (uint64_t)limit) {
+        return 0;
+    }
+    available = (uint64_t)limit - usage;
 
-    return usage < (uint64_t)limit && size + PHP_BSDIFF_PATCH_MEMORY_RESERVE < (uint64_t)limit - usage;
+    /* A smaller block may fit in a chunk that is already allocated, or need a new one. */
+    if (size > PHP_BSDIFF_MM_MAX_LARGE_SIZE) {
+        min_needed = max_needed = php_bsdiff_block_size(size);
+    } else {
+        min_needed = 0;
+        max_needed = size > 0 ? PHP_BSDIFF_MM_CHUNK_SIZE : 0;
+    }
+
+    return max_needed <= available && min_needed <= available && reserve <= available - min_needed;
+}
+
+/* Check that bsdiff_patch() is likely to fit in memory_limit, and throw an exception if not: with the output buffer for a
+ * patched file of the given size if alloc_output is set, and in any case bzip2's decompressor block after it. */
+static int php_bsdiff_check_memory_limit(int64_t newsize, int alloc_output)
+{
+    if (!php_bsdiff_fits_memory_limit(alloc_output ? (uint64_t)newsize + 1 : 0, php_bsdiff_block_size(PHP_BSDIFF_BZ_DECOMPRESS_SIZE))) {
+        zend_throw_exception_ex(ce_bsdiff_exception, 0, "The patched file size (" ZEND_ULONG_FMT " bytes) exceeds the memory limit", (zend_ulong)newsize);
+        return 0;
+    }
+    return 1;
 }
 
 /* {{{ void bsdiff_diff( string $old_file, string $new_file, string $diff_file ) */
@@ -626,11 +697,11 @@ PHP_FUNCTION(bsdiff_patch)
         goto cleanup;
     }
 
-    /* The output buffer is sized from the untrusted header, so check it against memory_limit, both before and after
-     * reading the old file. This turns an oversized (or forged) length into a catchable exception instead of a fatal
-     * error from emalloc(). */
-    if (!php_bsdiff_fits_memory_limit((uint64_t)newsize)) {
-        zend_throw_exception_ex(ce_bsdiff_exception, 0, "The patched file size (" ZEND_ULONG_FMT " bytes) exceeds the memory limit", (zend_ulong)newsize);
+    /* The output buffer is sized from the untrusted header. Check it, and bzip2's decompressor block that is allocated
+     * after it, against memory_limit: again after each allocation that comes before the output buffer, and once more
+     * after the output buffer. This turns an oversized (or forged) length into a catchable exception instead of a fatal
+     * error. */
+    if (!php_bsdiff_check_memory_limit(newsize, 1)) {
         goto cleanup;
     }
 
@@ -639,13 +710,9 @@ PHP_FUNCTION(bsdiff_patch)
         goto cleanup;
     }
 
-    if (!php_bsdiff_fits_memory_limit((uint64_t)newsize)) {
-        zend_throw_exception_ex(ce_bsdiff_exception, 0, "The patched file size (" ZEND_ULONG_FMT " bytes) exceeds the memory limit", (zend_ulong)newsize);
+    if (!php_bsdiff_check_memory_limit(newsize, 1)) {
         goto cleanup;
     }
-
-    /* Allocate buffer for patched output; bspatch() writes into it */
-    new_buf = emalloc((size_t)newsize + 1);
 
     memset(&reader.bz, 0, sizeof(reader.bz));
     reader.bz.bzalloc = php_bsdiff_bzalloc;
@@ -661,6 +728,17 @@ PHP_FUNCTION(bsdiff_patch)
         goto cleanup;
     }
     reader_initialized = 1;
+
+    if (!php_bsdiff_check_memory_limit(newsize, 1)) {
+        goto cleanup;
+    }
+
+    /* Allocate buffer for patched output; bspatch() writes into it */
+    new_buf = emalloc((size_t)newsize + 1);
+
+    if (!php_bsdiff_check_memory_limit(newsize, 0)) {
+        goto cleanup;
+    }
 
     stream.read = bz2_read;
     stream.opaque = &reader;
@@ -690,7 +768,7 @@ PHP_FUNCTION(bsdiff_patch)
 
     /* Copy the permission bits (but not setuid/setgid/sticky) of the old file before writing any data. */
     if (is_plain && old_mode >= 0) {
-        php_bsdiff_set_mode(new_s, new_file, old_mode);
+        php_bsdiff_set_mode(new_s, new_file, old_mode, created);
     }
 
     if (newsize > 0 && (size_t)php_stream_write(new_s, (const char *)new_buf, (size_t)newsize) != (size_t)newsize) {
