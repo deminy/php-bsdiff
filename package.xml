@@ -56,6 +56,12 @@
     <file name="014_bspatch_permissions.phpt" role="test"/>
     <file name="015_bspatch_corrupted_data.phpt" role="test"/>
     <file name="016_bspatch_zero_progress_control_data.phpt" role="test"/>
+    <file name="017_bspatch_invalid_length_32bit.phpt" role="test"/>
+    <file name="018_stream_wrappers.phpt" role="test"/>
+    <file name="019_bsdiff_existing_output_kept.phpt" role="test"/>
+    <file name="020_bsdiff_symlink_output_kept.phpt" role="test"/>
+    <file name="021_bspatch_header_only.phpt" role="test"/>
+    <file name="022_bspatch_memory_limit_boundary.phpt" role="test"/>
    </dir>
   </dir>
  </contents>

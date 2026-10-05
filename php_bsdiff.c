@@ -38,6 +38,10 @@
 #define PHP_BSDIFF_MAGIC     "ENDSLEY/BSDIFF43"
 #define PHP_BSDIFF_BUF_SIZE  8192
 
+/* Memory that bsdiff_patch() needs besides the output buffer: about 3.7 MB for bzip2's decompressor state, plus slack
+ * for the memory manager rounding up large allocations. */
+#define PHP_BSDIFF_PATCH_MEMORY_RESERVE (6 * 1024 * 1024)
+
 static zend_class_entry *ce_bsdiff_exception;
 
 void offtout(int64_t x,uint8_t *buf);
@@ -69,7 +73,8 @@ static void php_bsdiff_bzfree(void *opaque, void *ptr)
     }
 }
 
-/* Remove a (partially written) output file through its stream wrapper, so that open_basedir is respected. */
+/* Remove an output file through its stream wrapper, so that open_basedir is respected. Only call this for files that
+ * php_bsdiff_open_output() created. */
 static void php_bsdiff_unlink(const char *path)
 {
     const char *path_for_open = path;
@@ -80,15 +85,109 @@ static void php_bsdiff_unlink(const char *path)
     }
 }
 
-/* Change the permissions of a file through its stream wrapper (the same way PHP's chmod() does for wrappers). */
-static void php_bsdiff_chmod(const char *path, zend_long mode)
+/* Set the permission bits of an output file, before any data is written to it. Uses the file descriptor where
+ * possible, so that the path cannot be swapped for another file in between. */
+static void php_bsdiff_set_mode(php_stream *s, const char *path, zend_long mode)
 {
     const char *path_for_open = path;
-    php_stream_wrapper *wrapper = php_stream_locate_url_wrapper(path, &path_for_open, 0);
+    php_stream_wrapper *wrapper;
 
+#ifndef PHP_WIN32
+    int fd;
+
+    if (php_stream_cast(s, PHP_STREAM_AS_FD, (void **)&fd, 0) == SUCCESS) {
+        (void)fchmod(fd, (mode_t)mode);
+        return;
+    }
+#endif
+
+    /* Through the stream wrapper, the same way PHP's chmod() does. */
+    wrapper = php_stream_locate_url_wrapper(path, &path_for_open, 0);
     if (wrapper && wrapper->wops->stream_metadata) {
         wrapper->wops->stream_metadata(wrapper, path, PHP_STREAM_META_ACCESS, &mode, NULL);
     }
+}
+
+/* Open an output file for writing. Returns NULL on failure.
+ *
+ * *is_plain is set if the file is a local file, which can have permissions set and be removed on failure. *created is
+ * set if this call created the file. If so, it is a new regular file, which may be removed if writing it fails. Other
+ * wrappers do not reliably support the "x" mode (php://temp, for example, opens read-only without "w"), so they are
+ * always opened with "wb", and their files are never removed. */
+static php_stream *php_bsdiff_open_output(const char *path, int *is_plain, int *created)
+{
+    const char *path_for_open = path;
+    php_stream_wrapper *wrapper = php_stream_locate_url_wrapper(path, &path_for_open, 0);
+    php_stream *s;
+
+    *is_plain = (wrapper == &php_plain_files_wrapper);
+    *created = 0;
+
+    if (*is_plain) {
+        /* Check open_basedir once here, so that its warning is not repeated by the second open below. */
+        if (php_check_open_basedir(path_for_open)) {
+            return NULL;
+        }
+        s = php_stream_open_wrapper((char *)path, "xb", 0, NULL);
+        if (s) {
+            *created = 1;
+            return s;
+        }
+    }
+
+    return php_stream_open_wrapper((char *)path, "wb", 0, NULL);
+}
+
+/* Read the rest of a stream into a string. Returns NULL on a read error. */
+static zend_string *php_bsdiff_read_stream(php_stream *s, size_t size_hint)
+{
+#if PHP_VERSION_ID >= 70400
+    /* php_stream_copy_to_mem() stops silently on read errors. php_stream_read() reports them by returning -1. */
+    zend_string *str;
+    size_t len = 0, cap;
+    ssize_t n;
+
+    cap = (size_hint > 0 && size_hint < SIZE_MAX / 2) ? size_hint + 1 : PHP_BSDIFF_BUF_SIZE;
+    str = zend_string_alloc(cap, 0);
+    for (;;) {
+        if (len == cap) {
+            if (cap >= SIZE_MAX / 2) {
+                zend_string_efree(str);
+                return NULL;
+            }
+            cap *= 2;
+            str = zend_string_extend(str, cap, 0);
+        }
+        n = php_stream_read(s, ZSTR_VAL(str) + len, cap - len);
+        if (n < 0) {
+            zend_string_efree(str);
+            return NULL;
+        }
+        if (n == 0) {
+            break;
+        }
+        len += (size_t)n;
+    }
+    str = zend_string_truncate(str, len, 0);
+    ZSTR_VAL(str)[len] = '\0';
+
+    return str;
+#else
+    /* Before PHP 7.4, read errors look the same as the end of the file. For an unfiltered local file, a short read
+     * means that the read failed. */
+    zend_string *str = php_stream_copy_to_mem(s, PHP_STREAM_COPY_ALL, 0);
+
+    if (!str) {
+        str = ZSTR_EMPTY_ALLOC();
+    }
+    if (size_hint > 0 && php_stream_is(s, PHP_STREAM_IS_STDIO) && s->readfilters.head == NULL &&
+        ZSTR_LEN(str) < size_hint) {
+        zend_string_release(str);
+        return NULL;
+    }
+
+    return str;
+#endif
 }
 
 /* Read a whole input file into memory. Throws and returns NULL on failure.
@@ -101,6 +200,7 @@ static zend_string *php_bsdiff_read_file(const char *path, const char *label, ze
     php_stream_statbuf ssb;
     zend_string *str;
     int is_reg;
+    size_t size_hint;
 
     s = php_stream_open_wrapper((char *)path, "rb", 0, NULL);
     if (!s) {
@@ -109,6 +209,7 @@ static zend_string *php_bsdiff_read_file(const char *path, const char *label, ze
     }
 
     is_reg = 0;
+    size_hint = 0;
     if (php_stream_stat(s, &ssb) == 0) {
         if (S_ISDIR(ssb.sb.st_mode)) {
             php_stream_close(s);
@@ -116,19 +217,19 @@ static zend_string *php_bsdiff_read_file(const char *path, const char *label, ze
             return NULL;
         }
         is_reg = S_ISREG(ssb.sb.st_mode);
+        if (is_reg && ssb.sb.st_size > 0 && (uint64_t)ssb.sb.st_size < (uint64_t)SIZE_MAX) {
+            size_hint = (size_t)ssb.sb.st_size;
+        }
     }
 
-    str = php_stream_copy_to_mem(s, PHP_STREAM_COPY_ALL, 0);
+    str = php_bsdiff_read_stream(s, size_hint);
     php_stream_close(s);
-    if (!str) {
-        str = ZSTR_EMPTY_ALLOC();
-    }
 
-    /* php_stream_copy_to_mem() reports read errors only as notices (or not at all on older PHP versions), and
-     * returns whatever was read so far. For regular files, a short read means the read failed. A user error handler
-     * may also have turned the notice into an exception. */
-    if (EG(exception) || (is_reg && (uint64_t)ZSTR_LEN(str) < (uint64_t)ssb.sb.st_size)) {
-        zend_string_release(str);
+    /* A user error handler may have turned a read notice into an exception. */
+    if (!str || EG(exception)) {
+        if (str) {
+            zend_string_release(str);
+        }
         if (!EG(exception)) {
             zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to read the %s file \"%s\"", label, path);
         }
@@ -241,7 +342,8 @@ typedef enum {
     PHP_BSDIFF_READ_CORRUPTED,  /* invalid bzip2 data */
     PHP_BSDIFF_READ_TRUNCATED,  /* the diff file ends in the middle of the bzip2 stream */
     PHP_BSDIFF_READ_END,        /* the bzip2 stream ended before the requested data could be read */
-    PHP_BSDIFF_READ_OVERSIZED,  /* more data requested than a valid diff can contain */
+    PHP_BSDIFF_READ_OVERSIZED,  /* data follows the end of the diff */
+    PHP_BSDIFF_READ_EXCESSIVE,  /* more data requested than a valid diff can contain */
 } php_bsdiff_read_status;
 
 typedef struct {
@@ -312,11 +414,12 @@ static int bz2_read(const struct bspatch_stream* stream, void* buffer, int lengt
     }
 
     /* A crafted diff can make bspatch() loop on control entries that produce no output, while a tiny, highly
-     * compressible diff file feeds it an almost endless bzip2 stream. Since every control entry of a valid diff
-     * produces at least one byte of output, a valid diff never needs more than this budget. */
+     * compressible diff file feeds it an almost endless bzip2 stream. bsdiff() writes control entries at strictly
+     * increasing positions of the new file, so a valid diff has at most newsize + 1 of them (24 bytes each), plus
+     * newsize bytes of diff and extra data: never more than the budget of 25 * newsize + 24 bytes. */
     r->total += (uint64_t)length;
     if (r->total > r->budget) {
-        r->status = PHP_BSDIFF_READ_OVERSIZED;
+        r->status = PHP_BSDIFF_READ_EXCESSIVE;
         return -1;
     }
 
@@ -332,6 +435,11 @@ static int php_bsdiff_reader_finish(php_bsdiff_reader *r)
     if (php_bsdiff_reader_read(r, &c, 1) == 0) {
         r->status = PHP_BSDIFF_READ_OVERSIZED;
         return -1;
+    }
+    if (r->status == PHP_BSDIFF_READ_TRUNCATED && r->total == 0 && r->bz.total_in_lo32 == 0 && r->bz.total_in_hi32 == 0) {
+        /* A diff of an empty file without any bzip2 data, which earlier versions accepted. */
+        r->status = PHP_BSDIFF_READ_OK;
+        return 0;
     }
     if (r->status != PHP_BSDIFF_READ_END) {
         return -1;
@@ -358,11 +466,30 @@ static const char *php_bsdiff_read_error(php_bsdiff_read_status status)
             return "unexpected end of data";
         case PHP_BSDIFF_READ_OVERSIZED:
             return "unexpected extra data";
+        case PHP_BSDIFF_READ_EXCESSIVE:
+            return "too much control data";
         default:
             return "invalid control data";
     }
 }
 /* }}} */
+
+/* Check whether an output buffer of the given size is likely to fit in memory_limit. This is a best-effort check: it
+ * cannot account for everything, so a fatal error is still possible very close to the limit. */
+static int php_bsdiff_fits_memory_limit(uint64_t size)
+{
+    zend_long limit = PG(memory_limit);
+    uint64_t usage;
+
+    if (limit <= 0) {
+        return 1;
+    }
+
+    /* The limit applies to the memory that the memory manager has allocated, not the memory in use. */
+    usage = (uint64_t)zend_memory_usage(1);
+
+    return usage < (uint64_t)limit && size + PHP_BSDIFF_PATCH_MEMORY_RESERVE < (uint64_t)limit - usage;
+}
 
 /* {{{ void bsdiff_diff( string $old_file, string $new_file, string $diff_file ) */
 PHP_FUNCTION(bsdiff_diff)
@@ -379,6 +506,7 @@ PHP_FUNCTION(bsdiff_diff)
     zend_string *old_str = NULL;
     zend_string *new_str = NULL;
     php_stream *diff_s = NULL;
+    int is_plain, created;
     int ret = FAILURE;
 
     if (NULL == (old_str = php_bsdiff_read_file(old_file, "old", NULL))) {
@@ -396,24 +524,27 @@ PHP_FUNCTION(bsdiff_diff)
 
     /* The "b" flag is required for correctness on Windows when the extension is loaded by a host that has not set the
      * MSVC global `_fmode = _O_BINARY`. The flag is a no-op on POSIX systems. */
-    diff_s = php_stream_open_wrapper(diff_file, "wb", 0, NULL);
+    diff_s = php_bsdiff_open_output(diff_file, &is_plain, &created);
     if (!diff_s) {
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Cannot open the diff file \"%s\" in write mode", diff_file);
         goto cleanup;
     }
 
     /* If a fatal error (e.g., memory_limit exhausted) happens while creating the diff, remove the partial diff file
-     * before passing the error on. Memory allocated by bsdiff and bzip2 comes from emalloc, so PHP reclaims it. */
+     * (if this call created it) before passing the error on. Memory allocated by bsdiff and bzip2 comes from emalloc,
+     * so PHP reclaims it. */
     zend_try {
         ret = php_bsdiff_write_diff(diff_s, old_str, new_str);
     } zend_catch {
         php_stream_close(diff_s);
-        php_bsdiff_unlink(diff_file);
+        if (created) {
+            php_bsdiff_unlink(diff_file);
+        }
         zend_bailout();
     } zend_end_try();
 
     php_stream_close(diff_s);
-    if (ret != SUCCESS) {
+    if (ret != SUCCESS && created) {
         php_bsdiff_unlink(diff_file);
     }
 
@@ -449,7 +580,7 @@ PHP_FUNCTION(bsdiff_patch)
     uint8_t *new_buf = NULL;
     int64_t newsize;
     zend_long old_mode;
-    int created;
+    int is_plain, created;
     struct bspatch_stream stream;
     php_bsdiff_reader reader;
     int reader_initialized = 0;
@@ -495,15 +626,21 @@ PHP_FUNCTION(bsdiff_patch)
         goto cleanup;
     }
 
-    /* The output buffer is sized from the untrusted header, so check it against memory_limit up front. This turns
-     * an oversized (or forged) length into a catchable exception instead of a fatal error from emalloc(). */
-    if (PG(memory_limit) > 0 && (uint64_t)newsize >= (uint64_t)PG(memory_limit) - zend_memory_usage(0)) {
+    /* The output buffer is sized from the untrusted header, so check it against memory_limit, both before and after
+     * reading the old file. This turns an oversized (or forged) length into a catchable exception instead of a fatal
+     * error from emalloc(). */
+    if (!php_bsdiff_fits_memory_limit((uint64_t)newsize)) {
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "The patched file size (" ZEND_ULONG_FMT " bytes) exceeds the memory limit", (zend_ulong)newsize);
         goto cleanup;
     }
 
     /* Read old file into a managed zend_string */
     if (NULL == (old_str = php_bsdiff_read_file(old_file, "old", &old_mode))) {
+        goto cleanup;
+    }
+
+    if (!php_bsdiff_fits_memory_limit((uint64_t)newsize)) {
+        zend_throw_exception_ex(ce_bsdiff_exception, 0, "The patched file size (" ZEND_ULONG_FMT " bytes) exceeds the memory limit", (zend_ulong)newsize);
         goto cleanup;
     }
 
@@ -544,29 +681,23 @@ PHP_FUNCTION(bsdiff_patch)
     php_stream_close(diff_s);
     diff_s = NULL;
 
-    /* Write the new file. Try to create it exclusively first, to know whether it is a new file (which gets the
-     * permissions of the old file) or an existing one (which keeps its own permissions). Don't retry if open_basedir
-     * refused the path (EPERM), which would only repeat its warning. */
-    created = 1;
-    errno = 0;
-    new_s = php_stream_open_wrapper(new_file, "xb", 0, NULL);
-    if (!new_s && errno != EPERM) {
-        created = 0;
-        new_s = php_stream_open_wrapper(new_file, "wb", 0, NULL);
-    }
+    /* Write the new file */
+    new_s = php_bsdiff_open_output(new_file, &is_plain, &created);
     if (!new_s) {
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to create the new file \"%s\"", new_file);
         goto cleanup;
     }
 
     /* Copy the permission bits (but not setuid/setgid/sticky) of the old file before writing any data. */
-    if (created && old_mode >= 0) {
-        php_bsdiff_chmod(new_file, old_mode);
+    if (is_plain && old_mode >= 0) {
+        php_bsdiff_set_mode(new_s, new_file, old_mode);
     }
 
     if (newsize > 0 && (size_t)php_stream_write(new_s, (const char *)new_buf, (size_t)newsize) != (size_t)newsize) {
         php_stream_close(new_s);
-        php_bsdiff_unlink(new_file);
+        if (created) {
+            php_bsdiff_unlink(new_file);
+        }
         zend_throw_exception_ex(ce_bsdiff_exception, 0, "Failed to write to the new file \"%s\"", new_file);
         goto cleanup;
     }

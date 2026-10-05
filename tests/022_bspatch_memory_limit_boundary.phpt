@@ -1,0 +1,40 @@
+--TEST--
+Test bsdiff_patch() reports output sizes close to memory_limit as exceptions, not fatal errors
+--EXTENSIONS--
+bsdiff
+bz2
+--FILE--
+<?php
+$old_file     = __DIR__ . DIRECTORY_SEPARATOR . '022_old.out';
+$diff_file    = __DIR__ . DIRECTORY_SEPARATOR . '022_diff.out';
+$patched_file = __DIR__ . DIRECTORY_SEPARATOR . '022_patched.out';
+
+file_put_contents($old_file, 'Hello World');
+
+// One control entry that produces no output, so bzip2 allocates its decompressor state before the data runs out.
+$data = bzcompress(str_repeat("\0", 24), 9);
+
+$messages = [];
+for ($size = 1 << 20; $size <= 32 << 20; $size += 256 << 10) {
+    file_put_contents($diff_file, 'ENDSLEY/BSDIFF43' . pack('P', $size) . $data);
+    try {
+        bsdiff_patch($old_file, $patched_file, $diff_file);
+    } catch (BsdiffException $e) {
+        $messages[preg_replace('/\(\d+ bytes\)/', '(N bytes)', $e->getMessage())] = true;
+    }
+}
+echo implode(PHP_EOL, array_keys($messages)), PHP_EOL;
+var_dump(file_exists($patched_file));
+?>
+--CLEAN--
+<?php
+@unlink(__DIR__ . DIRECTORY_SEPARATOR . '022_old.out');
+@unlink(__DIR__ . DIRECTORY_SEPARATOR . '022_diff.out');
+@unlink(__DIR__ . DIRECTORY_SEPARATOR . '022_patched.out');
+?>
+--INI--
+memory_limit=16M
+--EXPECT--
+The diff file is corrupted (unexpected end of data)
+The patched file size (N bytes) exceeds the memory limit
+bool(false)

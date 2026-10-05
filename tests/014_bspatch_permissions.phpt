@@ -30,7 +30,7 @@ bsdiff_patch($old_file, $patched_file, $diff_file);
 echo 'new file: ', mode($patched_file), PHP_EOL;
 var_dump(file_get_contents($patched_file) === file_get_contents($new_file));
 
-// An existing file keeps its own permissions.
+// An existing file also gets the permission bits of the old file.
 chmod($patched_file, 0604);
 bsdiff_patch($old_file, $patched_file, $diff_file);
 echo 'existing file: ', mode($patched_file), PHP_EOL;
@@ -59,7 +59,7 @@ var_dump(file_get_contents($patched_file) === file_get_contents($new_file));
 --EXPECT--
 new file: 750
 bool(true)
-existing file: 604
+existing file: 750
 in place: 640
 bool(true)
 file:// URLs: 640

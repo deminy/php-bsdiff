@@ -2,13 +2,13 @@
 
 ### Fixed
 
-- `bsdiff_patch()`: reject output sizes in the diff header that do not fit in memory. This fixes a heap overflow on 32-bit platforms with crafted diff files, and turns an oversized length into a `BsdiffException` instead of a fatal error.
+- `bsdiff_patch()`: reject output sizes in the diff header that do not fit in memory. This fixes a heap overflow on 32-bit platforms with crafted diff files. Lengths that exceed `memory_limit` throw a `BsdiffException` instead of causing a fatal error; this check is best effort, so lengths very close to the limit can still cause a fatal error.
 - `bsdiff_patch()`: verify that the compressed data ends exactly where the patch ends (including its CRC), so truncated diff files and diff files with trailing data are rejected.
 - `bsdiff_patch()`: stop crafted diff files whose control data produces no output from running for an unbounded amount of time.
-- Throw an exception when an input file is a directory or cannot be read completely, instead of treating it as an empty file.
-- `bsdiff_patch()`: a newly created file gets the permission bits of the old file without setuid/setgid/sticky bits, set before any data is written; an existing file keeps its own permissions.
+- Throw an exception when an input file is a directory or a read error occurs, instead of treating it as an empty file. (Before PHP 7.4, read errors are detected for local files only, as a short read.)
+- `bsdiff_patch()`: the new file gets the permission bits of the old file without setuid/setgid/sticky bits. They are set through the file descriptor before any data is written, instead of by path after writing.
 - `bsdiff_patch()`: get the permissions of the old file from the opened stream instead of a separate `stat()` call, so stream wrappers and `open_basedir` are respected.
-- Remove the partially written output file when `bsdiff_diff()` or `bsdiff_patch()` fails, including when `bsdiff_diff()` exceeds the memory limit.
+- Remove the partially written output file when `bsdiff_diff()` or `bsdiff_patch()` fails, including when `bsdiff_diff()` exceeds the memory limit. Only local files that the call created are removed; existing files, symbolic links, devices, and files of other stream wrappers are left in place.
 - Fix a memory leak of about 7.5 MB of bzip2 state when `bsdiff_diff()` exceeds the memory limit.
 
 ### Changed
@@ -18,6 +18,9 @@
 - Error messages for corrupted diff data now give the reason, e.g., "The diff file is corrupted (unexpected end of data)". They replace "Failed to apply diff data".
 - `bsdiff_patch()` now reports a missing old file as "Failed to open the old file" (previously "Failed to stat the old file").
 - Windows: configuration fails with an error when BZip2 is not found, instead of failing later at link time.
+- `bsdiff_patch()` rejects diff files with data after the end of the bzip2 stream (e.g., an appended signature). Diff files created by `bsdiff_diff()` have none.
+- `bsdiff_patch()` reports control data that exceeds what a valid diff can contain as "The diff file is corrupted (too much control data)".
+- bzip2 state now counts against `memory_limit`: about 7.6 MB for `bsdiff_diff()` and 3.7 MB for `bsdiff_patch()`. Scripts that ran close to their memory limit may need a higher one.
 
 ## v0.2.1 (2026-06-24)
 

@@ -2,6 +2,10 @@
 Test bsdiff_patch() rejects invalid or oversized lengths in the diff header
 --EXTENSIONS--
 bsdiff
+--SKIPIF--
+<?php
+if (PHP_INT_SIZE !== 8) die('skip 64-bit only');
+?>
 --FILE--
 <?php
 $old_file     = __DIR__ . DIRECTORY_SEPARATOR . '012_old.out';
